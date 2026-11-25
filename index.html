@@ -414,7 +414,7 @@ function sheetCreer(){openSheet(`<h3>Créer</h3><div class="list">
   </div>`)}
 $('#fab').onclick=()=>{ED=null;if(location.hash==='#/devis-edit/nouveau')route();else go('#/devis-edit/nouveau')};
 function sheetMenu(){const it=(h,ic,t,s)=>`<a class="item" href="${h}" onclick="closeSheet()"><span class="av">${svg(ic)}</span><span class="grow"><span class="t" style="display:block">${t}</span><span class="s" style="display:block">${s}</span></span>${svg('chev','i chev')}</a>`;
-  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos prix enregistrés')}${it('#/urssaf','euro','Déclarer à l’URSSAF','Les montants à recopier, pas à pas')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/apparence','edit','Apparence','Couleurs, taille du texte, mode sombre')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.6 · vos données restent sur ce téléphone</p>`)}
+  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos articles et leurs prix')}${it('#/urssaf','euro','Déclarer à l’URSSAF','Les montants à recopier, pas à pas')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/apparence','edit','Apparence','Couleurs, taille du texte, mode sombre')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.7 · vos données restent sur ce téléphone</p>`)}
 
 /* ============ Routeur ============ */
 let ED=null,RETOUR_CLIENT=null,AFTER=null;
@@ -570,7 +570,7 @@ function vEditDoc(type,id){
   if(!ED.id&&!ED.devisId)h+=`<div class="seg big" role="radiogroup" aria-label="Type de document"><label><input type="radio" name="dtype" ${!isF?'checked':''} onchange="App.basculer('devis')"><span>Devis</span></label><label><input type="radio" name="dtype" ${isF?'checked':''} onchange="App.basculer('facture')"><span>Facture</span></label></div>`;
   h+=`<div class="eyebrow" style="margin:6px 0 8px">Client</div><div id="pick">${pickerHtml()}</div>
   <div class="eyebrow" style="margin:20px 0 8px">Ce que vous facturez</div><div id="lignes">${lignesHtml()}</div>
-  <div class="add-row"><button class="btn" onclick="App.ajLigne()">+ Ligne</button>${D.produits.length?`<button class="btn" onclick="App.sheetCatalogue()">+ Catalogue</button>`:''}</div>
+  <div class="add-row"><button class="btn" onclick="App.ajouter()">+ Ajouter une ligne</button></div>
   <details class="card"><summary>Dates${isF?' et échéance':' et validité'}</summary><div style="margin-top:12px">
     <div class="grid2"><label class="f">Date ${isF?'de la facture':'du devis'}<input type="date" value="${ED.date}" onchange="App.edDate(this.value)"></label>
     ${isF?`<label class="f">Date des travaux / livraison<input type="date" value="${ED.dateExecution||''}" onchange="ED.dateExecution=this.value"></label>`:`<label class="f">Valable jusqu'au<input type="date" id="edValid" value="${ED.validite||''}" onchange="ED.validite=this.value"></label>`}</div>
@@ -593,6 +593,7 @@ function lignesHtml(){return ED.lignes.map((l,i)=>`<div class="ligne">
     <div class="pu"><span class="lab">Prix unitaire (€)</span><input class="mini" inputmode="decimal" value="${esc(dec(l.pu))}" placeholder="0,00" oninput="ED.lignes[${i}].pu=this.value;App.majTotaux()" aria-label="Prix unitaire"></div>
   </div>
   <div class="foot"><select onchange="ED.lignes[${i}].nature=this.value;document.getElementById('fo${i}').hidden=this.value!=='mixte'" aria-label="Type">${optNature(l.nature)}</select><span class="lt" id="lt${i}">${eur(num(l.qte)*num(l.pu))}</span></div>
+  ${l.designation&&D.produits.some(p=>norm(p.designation)===norm(l.designation))?'':`<button type="button" class="small" style="border:0;background:none;color:var(--brand);font-weight:600;padding:8px 0 0;cursor:pointer" onclick="App.versCatalogue(${i})">☆ Garder dans mon catalogue</button>`}
   <div id="fo${i}" class="row" ${l.nature==='mixte'?'':'hidden'}><div class="pu"><span class="lab">${vocab().fo}</span><input class="mini" inputmode="decimal" value="${esc(dec(l.fourn||''))}" placeholder="Ex. : prix de la terre, des matériaux" oninput="ED.lignes[${i}].fourn=this.value" aria-label="Part de fourniture"></div></div>
 </div>`).join('')}
 
@@ -987,7 +988,15 @@ const App={
       <details ${l.length?'':'open'} class="card" style="box-shadow:none;border:1px solid var(--line)"><summary style="color:var(--brand)">+ Nouveau client</summary><form style="margin-top:12px" onsubmit="App.clientRapide(event)">${formClient({nom:'',type:'particulier'},'S')}<button class="btn primary block">Ajouter et choisir</button></form></details>`)},
   choixClient(id){ED.clientId=id;$('#pick').innerHTML=pickerHtml();closeSheet()},
   clientRapide(ev){const o=formData(ev);if(!o.nom)return;const c=Object.assign({id:uid()},o);if(c.type!=='pro')c.siren='';D.clients.push(c);enregistrer();toast('Client ajouté');App.choixClient(c.id)},
-  sheetCatalogue(){openSheet(`<h3>Ajouter depuis le catalogue</h3><div class="list">${D.produits.slice().sort((a,b)=>a.designation.localeCompare(b.designation,'fr')).map(p=>`<button class="item" onclick="App.ajProduit('${p.id}')"><span class="grow"><span class="t" style="display:block">${esc(p.designation)}</span><span class="s" style="display:block">${p.unite?'par '+esc(p.unite):''}</span></span><span class="amount">${eur(p.pu)}</span></button>`).join('')}</div>`)},
+  ajouter(){if(!D.produits.length)return App.ajLigne();App.sheetCatalogue()},
+  sheetCatalogue(){const l=D.produits.slice().sort((a,b)=>a.designation.localeCompare(b.designation,'fr'));
+    App._listeArt=q=>{q=norm(q).trim();const f=q?l.filter(p=>norm(p.designation).includes(q)):l;return f.length?`<div class="list">${f.map(p=>`<button class="item" onclick="App.ajProduit('${p.id}')"><span class="grow"><span class="t" style="display:block">${esc(p.designation)}</span><span class="s" style="display:block">${vocab()[p.nature||'service'][1]}${p.unite?' · par '+esc(p.unite):''}</span></span><span class="amount">${eur(p.pu)}</span></button>`).join('')}</div>`:'<p class="small muted">Aucun article trouvé.</p>'};
+    openSheet(`<h3>Ajouter une ligne</h3><div class="list"><button class="item" onclick="closeSheet();setTimeout(App.ajLigne,250)"><span class="av">${svg('edit')}</span><span class="grow"><span class="t" style="display:block">Écrire à la main</span><span class="s" style="display:block">Une ligne libre, que vous remplissez vous-même</span></span></button></div>
+    <div class="eyebrow" style="margin:16px 0 8px">Mes articles</div><div class="search">${svg('search')}<input type="search" placeholder="Rechercher un article" oninput="document.getElementById('artlist').innerHTML=App._listeArt(this.value)"></div><div id="artlist">${App._listeArt('')}</div>
+    <a class="small" href="#/catalogue" onclick="closeSheet()">Gérer mon catalogue</a>`)},
+  versCatalogue(i){const l=ED.lignes[i];const d=String(l.designation||'').trim();if(!d){toast('Écrivez d’abord la désignation');return}
+    if(D.produits.some(p=>norm(p.designation)===norm(d))){toast('Déjà dans votre catalogue');return}
+    D.produits.push({id:uid(),designation:d,unite:l.unite||'',pu:r2(num(l.pu)),nature:l.nature||'service',fourn:l.nature==='mixte'?r2(num(l.fourn)):undefined});enregistrer();$('#lignes').innerHTML=lignesHtml();App.majTotaux();toast('⭐ Ajouté à votre catalogue')},
   edDate(v){const ancien=ED.date;ED.date=v;
     if(ED._type==='devis'){if(!ED.validite||ED.validite===addDays(ancien,30)){ED.validite=addDays(v,30);const el=$('#edValid');if(el)el.value=ED.validite}}
     else{const del=num(D.entreprise.delai)||30;if(!ED.echeance||ED.echeance===addDays(ancien,del)){ED.echeance=addDays(v,del);const el=$('#edEch');if(el)el.value=ED.echeance}if(!ED.dateExecution||ED.dateExecution===ancien)ED.dateExecution=v}},
