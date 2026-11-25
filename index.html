@@ -358,7 +358,8 @@ const IC={
   menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
   share:'<path d="M12 3v13M7 8l5-5 5 5"/><path d="M5 14v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>',
-  pdf:'<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
+  pdf:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 11v6M9 14l3 3 3-3"/>',
+  print:'<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
   edit:'<path d="M4 20h4L19 9l-4-4L4 16z"/>',
   more:'<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
   trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
@@ -375,33 +376,37 @@ const svg=(k,cls='i')=>`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="tru
 const KEY='kwik_v1';
 const PARAMS_DEFAUT={tauxVente:12.3,tauxService:21.2,plafondVente:203100,plafondService:83600,tvaVente:85000,tvaService:37500};
 function vide(){return{
-  entreprise:{prenomNom:'',nomCommercial:'',siret:'',adresse:'',cp:'',ville:'',email:'',tel:'',activite:'service',logo:'',iban:'',bic:'',delai:30,assurance:'',mentionLibre:'',metier:'',mediateurNom:'',mediateurSite:'',cgv:'',cgvDevis:true,cgvFacture:true},
-  clients:[],produits:[],devis:[],factures:[],achats:[],compteurs:{},params:Object.assign({},PARAMS_DEFAUT),derniereSauvegarde:''}}
+  entreprise:{prenomNom:'',nomCommercial:'',siret:'',debutActivite:'',adresse:'',cp:'',ville:'',email:'',tel:'',activite:'service',logo:'',iban:'',bic:'',delai:0,assurance:'',mentionLibre:'',metier:'',mediateurNom:'',mediateurSite:'',cgv:'',cgvDevis:true,cgvFacture:true},
+  clients:[],produits:[],devis:[],factures:[],avoirs:[],achats:[],compteurs:{},params:Object.assign({},PARAMS_DEFAUT),derniereSauvegarde:''}}
 function fusion(d){const v=vide();const out=Object.assign(v,d);out.entreprise=Object.assign(vide().entreprise,d.entreprise||{});out.params=Object.assign({},PARAMS_DEFAUT,d.params||{});return out}
 function charger(){try{const s=localStorage.getItem(KEY);if(s)return fusion(JSON.parse(s))}catch(e){}return vide()}
 let D=charger();
 function enregistrer(){try{localStorage.setItem(KEY,JSON.stringify(D));return true}catch(e){info("Enregistrement impossible","Ce téléphone refuse d'enregistrer (mémoire pleine ou navigation privée). Exportez une sauvegarde depuis le menu.");return false}}
 const parId=(arr,id)=>arr.find(x=>x.id===id);
-function prochainNumero(type,dateIso){const y=(dateIso||today()).slice(0,4);const k=type+y;const n=(D.compteurs[k]||0)+1;D.compteurs[k]=n;return (type==='facture'?'F':'D')+y+'-'+String(n).padStart(type==='facture'?4:3,'0')}
+function prochainNumero(type,dateIso){const y=(dateIso||today()).slice(0,4);const k=type+y;const n=(D.compteurs[k]||0)+1;D.compteurs[k]=n;return (type==='facture'?'F':type==='avoir'?'A':'D')+y+'-'+String(n).padStart(type==='devis'?3:4,'0')}
 const totalDoc=doc=>r2((doc.lignes||[]).reduce((s,l)=>s+num(l.qte)*num(l.pu),0));
 function partsLigne(l){const q=num(l.qte),pu=num(l.pu);if(l.nature==='mixte'){const f=Math.min(pu,Math.max(0,num(l.fourn)));return{vente:q*f,service:q*(pu-f)}}return l.nature==='vente'?{vente:q*pu,service:0}:{vente:0,service:q*pu}}
 function partsDoc(doc){const p={vente:0,service:0};(doc.lignes||[]).forEach(l=>{const x=partsLigne(l);p.vente+=x.vente;p.service+=x.service});p.vente=r2(p.vente);p.service=r2(p.service);return p}
 function natureOperation(doc){const p=partsDoc(doc);if(p.vente&&p.service)return 'Livraison de biens et prestation de services';if(p.vente)return 'Livraison de biens';return 'Prestation de services'}
-const enRetard=f=>f.statut!=='payee'&&f.echeance&&f.echeance<today();
-function badgeFacture(f){if(f.statut==='payee')return '<span class="badge ok">Payée</span>';if(enRetard(f))return '<span class="badge bad">En retard</span>';return '<span class="badge warn">À encaisser</span>'}
+const aEncaisser=f=>f.statut!=='payee'&&!f.annulee;
+const echeanceTxt=d=>!d.echeance||d.echeance<=d.date?'à réception':fdate(d.echeance);
+const enRetard=f=>aEncaisser(f)&&f.echeance&&f.echeance<today();
+function badgeFacture(f){if(f.annulee)return '<span class="badge grey">Annulée</span>';if(f.statut==='payee')return '<span class="badge ok">Payée</span>';if(enRetard(f))return '<span class="badge bad">En retard</span>';return '<span class="badge warn">À encaisser</span>'}
 const STATUTS_DEVIS={brouillon:['Brouillon','grey'],envoye:['Envoyé','warn'],accepte:['Accepté','ok'],refuse:['Refusé','bad'],facture:['Facturé','']};
 function badgeDevis(d){const s=STATUTS_DEVIS[d.statut]||STATUTS_DEVIS.brouillon;return `<span class="badge ${s[1]}">${s[0]}</span>`}
+const delaiJ=()=>{const v=D.entreprise.delai;return v===''||v==null||!isFinite(num(v))?30:Math.max(0,Math.round(num(v)))};
 const entrepriseOk=()=>!!(D.entreprise.prenomNom&&D.entreprise.siret&&D.entreprise.adresse);
 const prenom=()=>String(D.entreprise.prenomNom||'').trim().split(/\s+/)[0]||'';
 function encaisse(de,a){const r={vente:0,service:0,nb:0};
   D.factures.forEach(f=>{if(f.statut==='payee'&&f.paiement&&f.paiement.date>=de&&f.paiement.date<=a){const p=partsDoc(f);r.vente+=p.vente;r.service+=p.service;r.nb++}});
+  (D.avoirs||[]).forEach(v=>{if(v.statut==='rembourse'&&v.paiement&&v.paiement.date>=de&&v.paiement.date<=a){const p=partsDoc(v);r.vente-=p.vente;r.service-=p.service}});
   r.vente=r2(r.vente);r.service=r2(r.service);r.total=r2(r.vente+r.service);
   r.cotis=r2(r.vente*D.params.tauxVente/100+r.service*D.params.tauxService/100);return r}
 
 /* ============ Feuille, confirmation ============ */
 let sheetResolve=null;
-function openSheet(html,onOpen){const s=$('#sheet'),sc=$('#scrim');$('#sheetIn').innerHTML=html;s.hidden=false;sc.hidden=false;requestAnimationFrame(()=>{s.classList.add('on');sc.classList.add('on')});s.scrollTop=0;if(onOpen)setTimeout(onOpen,60)}
-function closeSheet(v){const s=$('#sheet'),sc=$('#scrim');s.classList.remove('on');sc.classList.remove('on');setTimeout(()=>{s.hidden=true;sc.hidden=true},230);if(sheetResolve){const r=sheetResolve;sheetResolve=null;r(v)}}
+function openSheet(html,onOpen){clearTimeout(closeSheet.t);const s=$('#sheet'),sc=$('#scrim');$('#sheetIn').innerHTML=html;s.hidden=false;sc.hidden=false;requestAnimationFrame(()=>{s.classList.add('on');sc.classList.add('on')});s.scrollTop=0;if(onOpen)setTimeout(onOpen,60)}
+function closeSheet(v){const s=$('#sheet'),sc=$('#scrim');s.classList.remove('on');sc.classList.remove('on');closeSheet.t=setTimeout(()=>{s.hidden=true;sc.hidden=true},230);if(sheetResolve){const r=sheetResolve;sheetResolve=null;r(v)}}
 $('#scrim').onclick=()=>closeSheet(false);
 function ask(titre,texte,ok='Confirmer',danger=false){return new Promise(res=>{sheetResolve=res;
   openSheet(`<h3>${esc(titre)}</h3>${texte?`<p class="muted" style="margin-top:-4px">${esc(texte)}</p>`:''}<div class="btns"><button class="btn ghost" onclick="closeSheet(false)">Annuler</button><button class="btn ${danger?'danger':'primary'}" style="${danger?'background:var(--bad);color:#fff':''}" onclick="closeSheet(true)">${esc(ok)}</button></div>`)})}
@@ -414,7 +419,7 @@ function sheetCreer(){openSheet(`<h3>Créer</h3><div class="list">
   </div>`)}
 $('#fab').onclick=()=>{ED=null;if(location.hash==='#/devis-edit/nouveau')route();else go('#/devis-edit/nouveau')};
 function sheetMenu(){const it=(h,ic,t,s)=>`<a class="item" href="${h}" onclick="closeSheet()"><span class="av">${svg(ic)}</span><span class="grow"><span class="t" style="display:block">${t}</span><span class="s" style="display:block">${s}</span></span>${svg('chev','i chev')}</a>`;
-  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos articles et leurs prix')}${it('#/urssaf','euro','Déclarer à l’URSSAF','Les montants à recopier, pas à pas')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/apparence','edit','Apparence','Couleurs, taille du texte, mode sombre')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.7 · vos données restent sur ce téléphone</p>`)}
+  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos articles et leurs prix')}${it('#/urssaf','euro','Déclarer à l’URSSAF','Les montants à recopier, pas à pas')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/apparence','edit','Apparence','Couleurs, taille du texte, mode sombre')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.8 · vos données restent sur ce téléphone</p>`)}
 
 /* ============ Routeur ============ */
 let ED=null,RETOUR_CLIENT=null,AFTER=null;
@@ -446,7 +451,7 @@ function barre(lib,val,max){const pc=max?Math.min(100,val/max*100):0;const cls=p
 function vAccueil(){
   titre('');
   const t=today(),y=t.slice(0,4),m=+t.slice(5,7);const P=periodes();const an=encaisse(y+'-01-01',y+'-12-31');const mois=encaisse(P[0].de,P[0].a);
-  const aEnc=D.factures.filter(f=>f.statut!=='payee');const retard=aEnc.filter(enRetard);const totAEnc=r2(aEnc.reduce((s,f)=>s+totalDoc(f),0));
+  const aEnc=D.factures.filter(aEncaisser);const retard=aEnc.filter(enRetard);const totAEnc=r2(aEnc.reduce((s,f)=>s+totalDoc(f),0));
   const h0=new Date().getHours();
   let h=`<div class="hello">${h0<18&&h0>=5?'Bonjour':'Bonsoir'}${prenom()?' '+esc(prenom()):''} 👋</div><div class="muted">${D.factures.length||D.devis.length?'Voici où vous en êtes.':'Bienvenue dans Kwik.'}</div>`;
   // Premiers pas
@@ -468,11 +473,14 @@ function vAccueil(){
   D.devis.filter(d=>d.statut==='envoye'&&daysBetween(d.date,t)>=7).forEach(d=>todos.push(`<a class="todo" href="#/voir/devis/${d.id}" style="text-decoration:none;color:inherit"><span class="dot" style="background:var(--warn)"></span><span style="flex:1;min-width:0"><b>Devis sans réponse : ${esc(d.client.nom)}</b><br><span class="small muted">${esc(d.numero)} · envoyé il y a ${daysBetween(d.date,t)} j</span></span><span class="amount">${eur(totalDoc(d))}</span></a>`));
   D.devis.filter(d=>d.statut==='accepte').forEach(d=>todos.push(`<a class="todo" href="#/voir/devis/${d.id}" style="text-decoration:none;color:inherit"><span class="dot" style="background:var(--ok)"></span><span style="flex:1;min-width:0"><b>Facturer ${esc(d.client.nom)}</b><br><span class="small muted">Devis ${esc(d.numero)} accepté</span></span><span class="amount">${eur(totalDoc(d))}</span></a>`));
   if(D.onboarded||entrepriseOk())aDeclarer().slice(0,1).forEach(o=>todos.push(`<a class="todo" href="#/urssaf" style="text-decoration:none;color:inherit"><span class="dot" style="background:${o.limite<t?'var(--bad)':'var(--warn)'}"></span><span style="flex:1;min-width:0"><b>Déclarer à l'URSSAF : ${o.lib}</b><br><span class="small muted">Avant le ${fdate(o.limite)}</span></span><span class="amount">${eur(o.vente+o.service)}</span></a>`));
+  const vg=verifs(null,null).filter(x=>x[0]!=='Fiche entreprise incomplète');
+  if((D.onboarded||entrepriseOk())&&!D.entreprise.debutActivite)todos.push(`<a class="todo" href="#/entreprise" style="text-decoration:none;color:inherit"><span class="dot" style="background:var(--warn)"></span><span style="flex:1;min-width:0"><b>Indiquer ma date de début d'activité</b><br><span class="small muted">Pour savoir quand déclarer à l'URSSAF</span></span>${svg('chev','i chev')}</a>`);
+  if((D.onboarded||entrepriseOk())&&vg.length)todos.push(`<a class="todo" href="#/entreprise" style="text-decoration:none;color:inherit"><span class="dot" style="background:var(--warn)"></span><span style="flex:1;min-width:0"><b>${vg.every(x=>/CGV/.test(x[0]))?'Terminer mes CGV':'Compléter Mon entreprise'}</b><br><span class="small muted">${vg.map(x=>esc(x[0])).join(' · ')}</span></span>${svg('chev','i chev')}</a>`);
   const ds=D.derniereSauvegarde;
   if(D.factures.length+D.devis.length&&(!ds||(Date.now()-new Date(ds).getTime())>30*864e5))todos.push(`<a class="todo" href="#/sauvegarde" style="text-decoration:none;color:inherit"><span class="dot" style="background:var(--brand)"></span><span style="flex:1"><b>Sauvegarder mes données</b><br><span class="small muted">${ds?'Dernière sauvegarde le '+fdate(ds.slice(0,10)):'Jamais faite'}</span></span>${svg('chev','i chev')}</a>`);
   if(todos.length)h+=`<h2>À faire</h2><div class="list">${todos.join('')}</div>`;
   // Récents
-  const recents=[...D.devis.map(d=>['devis',d]),...D.factures.map(f=>['facture',f])].sort((a,b)=>(b[1].maj||b[1].cree||'').localeCompare(a[1].maj||a[1].cree||'')).slice(0,4);
+  const recents=[...D.devis.map(d=>['devis',d]),...D.factures.map(f=>['facture',f]),...(D.avoirs||[]).map(a=>['avoir',a])].sort((a,b)=>(b[1].maj||b[1].cree||'').localeCompare(a[1].maj||a[1].cree||'')).slice(0,4);
   if(recents.length)h+=`<h2>Récemment</h2><div class="list">${recents.map(([ty,d])=>ligneDoc(ty,d,true)).join('')}</div>`;
   // URSSAF
 
@@ -485,31 +493,31 @@ function vAccueil(){
   return h}
 
 /* ============ Listes ============ */
-function ligneDoc(type,d,avecType){const cl=d.client||{};
-  return `<a class="item" href="#/voir/${type}/${d.id}"><span class="av">${avecType?svg(type):esc(initiales(cl.nom))}</span><span class="grow"><span class="t" style="display:block">${esc(cl.nom||'Sans client')}</span><span class="s" style="display:block">${avecType?(type==='devis'?'Devis ':'Facture ')+'· ':''}${esc(d.numero||'')} · ${fdate(d.date)}</span></span><span class="end"><span class="amount">${eur(totalDoc(d))}</span>${type==='facture'?badgeFacture(d):badgeDevis(d)}</span></a>`}
+function ligneDoc(type,d,avecType){const cl=d.client||{};const lib={devis:'Devis ',facture:'Facture ',avoir:'Avoir '}[type];
+  return `<a class="item" href="#/voir/${type}/${d.id}"><span class="av">${avecType?svg(type==='avoir'?'facture':type):esc(initiales(cl.nom))}</span><span class="grow"><span class="t" style="display:block">${esc(cl.nom||'Sans client')}</span><span class="s" style="display:block">${avecType||type==='avoir'?lib+'· ':''}${esc(d.numero||'')} · ${fdate(d.date)}</span></span><span class="end"><span class="amount">${type==='avoir'?'−':''}${eur(totalDoc(d))}</span>${badgeDoc(type,d)}</span></a>`}
 const tri=arr=>arr.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.numero||'').localeCompare(a.numero||''));
 let RECH={devis:'',factures:'',clients:''};
 function barreRecherche(cle,ph){return `<div class="search">${svg('search')}<input type="search" placeholder="${ph}" value="${esc(RECH[cle])}" oninput="RECH.${cle}=this.value;App.filtrer('${cle}')" aria-label="${ph}"></div>`}
 function filtreTexte(l,q){q=norm(q).trim();if(!q)return l;return l.filter(d=>norm((d.client&&d.client.nom)||d.nom).includes(q)||norm(d.numero).includes(q))}
 const FDEVIS={tous:['Tous',()=>true],encours:['En attente',d=>d.statut==='brouillon'||d.statut==='envoye'],acceptes:['Acceptés',d=>d.statut==='accepte'||d.statut==='facture'],refuses:['Refusés',d=>d.statut==='refuse']};
-const FFACT={toutes:['Toutes',()=>true],aencaisser:['À encaisser',f=>f.statut!=='payee'],retard:['En retard',enRetard],payees:['Payées',f=>f.statut==='payee']};
+const FFACT={toutes:['Toutes',()=>true],aencaisser:['À encaisser',aEncaisser],retard:['En retard',enRetard],payees:['Payées',f=>f.statut==='payee']};
 function chips(base,cur,F,arr){return `<div class="chips">`+Object.entries(F).map(([k,v])=>`<a class="chip ${cur===k?'on':''}" href="#/${base}/${k}">${v[0]}<span class="n">${arr.filter(v[1]).length}</span></a>`).join('')+`</div>`}
 let FILTRE={devis:'tous',factures:'toutes'};
 function contenuDevis(){const l=filtreTexte(tri(D.devis).filter(FDEVIS[FILTRE.devis][1]),RECH.devis);
   return l.length?`<div class="list">${l.map(d=>ligneDoc('devis',d)).join('')}</div>`:vide_(D.devis.length?'Aucun devis ne correspond.':'Aucun devis pour l’instant.','devis',D.devis.length?'':`<a class="btn primary" href="#/devis-edit/nouveau">Faire un devis</a>`)}
-function contenuFactures(){const l=filtreTexte(tri(D.factures).filter(FFACT[FILTRE.factures][1]),RECH.factures);
-  return l.length?`<div class="list">${l.map(d=>ligneDoc('facture',d)).join('')}</div>`:vide_(D.factures.length?'Aucune facture ici.':'Aucune facture pour l’instant.','facture',D.factures.length?'':`<a class="btn primary" href="#/facture-edit/nouveau">Faire une facture</a>`)}
+function contenuFactures(){const l=filtreTexte(tri([...D.factures.filter(FFACT[FILTRE.factures][1]),...(FILTRE.factures==='toutes'?(D.avoirs||[]):[])]),RECH.factures);
+  return l.length?`<div class="list">${l.map(d=>ligneDoc(d.factureNumero?'avoir':'facture',d)).join('')}</div>`:vide_(D.factures.length?'Aucune facture ici.':'Aucune facture pour l’instant.','facture',D.factures.length?'':`<a class="btn primary" href="#/facture-edit/nouveau">Faire une facture</a>`)}
 function vide_(t,ic,btn){return `<div class="empty">${svg(ic)}<div>${t}</div>${btn?`<div style="margin-top:14px">${btn}</div>`:''}</div>`}
 function vListeDevis(f){FILTRE.devis=FDEVIS[f]?f:'tous';titre('Devis');
   return barreRecherche('devis','Rechercher un client, un numéro')+chips('devis',FILTRE.devis,FDEVIS,D.devis)+`<div id="res">${contenuDevis()}</div>`}
 function vListeFactures(f){FILTRE.factures=FFACT[f]?f:'toutes';titre('Factures');
-  const aEnc=D.factures.filter(x=>x.statut!=='payee');
+  const aEnc=D.factures.filter(aEncaisser);
   return (aEnc.length?`<div class="kpis"><div class="kpi"><div class="l">À encaisser</div><div class="v">${eur(aEnc.reduce((s,x)=>s+totalDoc(x),0))}</div></div><div class="kpi"><div class="l">Dont en retard</div><div class="v" style="color:var(--bad)">${eur(aEnc.filter(enRetard).reduce((s,x)=>s+totalDoc(x),0))}</div></div></div>`:'')+
     barreRecherche('factures','Rechercher un client, un numéro')+chips('factures',FILTRE.factures,FFACT,D.factures)+`<div id="res">${contenuFactures()}</div>`}
 
 /* ============ Clients ============ */
 function contenuClients(){const l=filtreTexte(D.clients.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr')),RECH.clients);
-  return l.length?`<div class="list">`+l.map(c=>{const fs=D.factures.filter(f=>f.clientId===c.id);const du=r2(fs.filter(f=>f.statut!=='payee').reduce((s,f)=>s+totalDoc(f),0));
+  return l.length?`<div class="list">`+l.map(c=>{const fs=D.factures.filter(f=>f.clientId===c.id);const du=r2(fs.filter(aEncaisser).reduce((s,f)=>s+totalDoc(f),0));
     return `<a class="item" href="#/client-edit/${c.id}"><span class="av">${esc(initiales(c.nom))}</span><span class="grow"><span class="t" style="display:block">${esc(c.nom)}</span><span class="s" style="display:block">${c.type==='pro'?'Professionnel':'Particulier'}${c.ville?' · '+esc(c.ville):''}${c.tel?' · '+esc(c.tel):''}</span></span>${du?`<span class="end"><span class="amount">${eur(du)}</span><span class="badge warn">À encaisser</span></span>`:svg('chev','i chev')}</a>`}).join('')+`</div>`
     :vide_(D.clients.length?'Aucun client ne correspond.':'Votre carnet de clients est vide.','client',D.clients.length?'':`<a class="btn primary" href="#/client-edit/nouveau">Ajouter un client</a>`)}
 function vClients(){titre('Clients');return barreRecherche('clients','Rechercher un client')+`<div id="res">${contenuClients()}</div>`}
@@ -526,9 +534,9 @@ function vClientEdit(id){
   if(!c){go('#/clients');return ''}
   titre(c.id?c.nom:'Nouveau client','#/clients','');
   let h='';
-  if(c.id){const fs=tri(D.factures.filter(f=>f.clientId===c.id)),ds=tri(D.devis.filter(d=>d.clientId===c.id));
+  if(c.id){const fs=tri(D.factures.filter(f=>f.clientId===c.id)),ds=tri(D.devis.filter(d=>d.clientId===c.id)),avs=tri((D.avoirs||[]).filter(a=>a.clientId===c.id));
     h+=`<div class="btns"><a class="btn primary" href="javascript:App.nouveauPour('devis','${c.id}')">${svg('devis')} Devis</a><a class="btn" href="javascript:App.nouveauPour('facture','${c.id}')">${svg('facture')} Facture</a></div>`;
-    if(fs.length||ds.length)h+=`<h2>Historique</h2><div class="list">${[...ds.map(d=>ligneDoc('devis',d,true)),...fs.map(f=>ligneDoc('facture',f,true))].join('')}</div><h2>Coordonnées</h2>`}
+    if(fs.length||ds.length||avs.length)h+=`<h2>Historique</h2><div class="list">${[...ds.map(d=>ligneDoc('devis',d,true)),...fs.map(f=>ligneDoc('facture',f,true)),...avs.map(a=>ligneDoc('avoir',a,true))].join('')}</div><h2>Coordonnées</h2>`}
   h+=`<form class="card" onsubmit="App.sauverClient(event,'${c.id}')">${formClient(c,'')}<button class="btn primary block">Enregistrer</button>${c.id?`<div style="height:10px"></div><button type="button" class="btn ghost danger block" onclick="App.supprimerClient('${c.id}')">Supprimer ce client</button>`:''}</form>`;
   return h}
 
@@ -553,28 +561,36 @@ function vProduitEdit(id){const p=id&&id!=='nouveau'?parId(D.produits,id):{id:''
 
 /* ============ Édition devis / facture ============ */
 function nouvelleLigne(){return{designation:'',qte:1,unite:'',pu:'',nature:D.entreprise.activite==='service'?'service':'vente'}}
+/* Les factures se suivent dans l'ordre des dates : bornes autorisées pour la date d'une facture. */
+function bornesDate(doc){const fs=D.factures.filter(f=>f.id!==doc.id&&f.numero&&f.date);
+  if(!doc.numero)return{min:fs.reduce((m,f)=>f.date>m?f.date:m,''),max:''};
+  const y=doc.numero.slice(1,5);const avant=fs.filter(f=>f.numero<doc.numero).reduce((m,f)=>f.date>m?f.date:m,'');const apres=fs.filter(f=>f.numero>doc.numero).reduce((m,f)=>!m||f.date<m?f.date:m,'');
+  return{min:[avant,y+'-01-01'].sort().pop(),max:[apres||'9999-12-31',y+'-12-31'].sort()[0]}}
 function vEditDoc(type,id){
   const liste=type==='devis'?D.devis:D.factures;const key=id||'nouveau';
   if(!ED||ED._type!==type||ED._id!==key){
     if(key!=='nouveau'){const src=parId(liste,key);if(!src){go('#/'+(type==='devis'?'devis':'factures'));return ''}
       if(type==='facture'&&src.statut==='payee'){toast('Une facture payée ne peut plus être modifiée');go('#/voir/facture/'+key);return ''}
+      if(type==='facture'&&(src.envoyee||src.annulee)){toast(src.annulee?'Cette facture est annulée':'Facture déjà envoyée : touchez « Corriger »');go('#/voir/facture/'+key);return ''}
       ED=JSON.parse(JSON.stringify(src))}
     else{const t=today();ED={id:'',date:t,clientId:'',lignes:[nouvelleLigne()],notes:''};
-      if(type==='devis')ED.validite=addDays(t,30);else{ED.dateExecution=t;ED.echeance=addDays(t,num(D.entreprise.delai)||30)}}
+      if(type==='devis')ED.validite=addDays(t,30);else{ED.dateExecution=t;ED.echeance=addDays(t,delaiJ())}}
     ED._type=type;ED._id=key}
   const isF=type==='facture';
   titre(ED.id?ED.numero:(isF?'Nouvelle facture':'Nouveau devis'),()=>{ED=null;history.length>1?history.back():go('#/accueil')},'');
   let h='';
   if(!entrepriseOk())h+=`<div class="alert info">Votre fiche entreprise est incomplète. <a href="#/entreprise">La remplir</a></div>`;
-  if(isF&&ED.numero)h+=`<div class="alert">Si cette facture a déjà été envoyée au client, mieux vaut ne plus la modifier.</div>`;
-  if(!ED.id&&!ED.devisId)h+=`<div class="seg big" role="radiogroup" aria-label="Type de document"><label><input type="radio" name="dtype" ${!isF?'checked':''} onchange="App.basculer('devis')"><span>Devis</span></label><label><input type="radio" name="dtype" ${isF?'checked':''} onchange="App.basculer('facture')"><span>Facture</span></label></div>`;
+  if(isF&&ED.numero)h+=`<div class="alert info">Cette facture n'est pas encore partie : vous pouvez la modifier. Dès qu'elle sort de Kwik (PDF, envoi, impression), elle sera verrouillée.</div>`;
+  if(isF&&ED.remplace){const o=parId(D.factures,ED.remplace);if(o)h+=`<div class="alert info">Cette facture remplacera <b>${esc(o.numero)}</b>. En l'enregistrant, Kwik crée l'avoir qui annule l'ancienne.</div>`}
+  if(!ED.id&&!ED.devisId&&!ED.remplace)h+=`<div class="seg big" role="radiogroup" aria-label="Type de document"><label><input type="radio" name="dtype" ${!isF?'checked':''} onchange="App.basculer('devis')"><span>Devis</span></label><label><input type="radio" name="dtype" ${isF?'checked':''} onchange="App.basculer('facture')"><span>Facture</span></label></div>`;
   h+=`<div class="eyebrow" style="margin:6px 0 8px">Client</div><div id="pick">${pickerHtml()}</div>
   <div class="eyebrow" style="margin:20px 0 8px">Ce que vous facturez</div><div id="lignes">${lignesHtml()}</div>
   <div class="add-row"><button class="btn" onclick="App.ajouter()">+ Ajouter une ligne</button></div>
   <details class="card"><summary>Dates${isF?' et échéance':' et validité'}</summary><div style="margin-top:12px">
-    <div class="grid2"><label class="f">Date ${isF?'de la facture':'du devis'}<input type="date" value="${ED.date}" onchange="App.edDate(this.value)"></label>
+    <div class="grid2"><label class="f">Date ${isF?'de la facture':'du devis'}<input type="date" value="${ED.date}" ${isF?`min="${bornesDate(ED).min}" ${bornesDate(ED).max?`max="${bornesDate(ED).max}"`:''}`:''} onchange="App.edDate(this.value)"></label>
     ${isF?`<label class="f">Date des travaux / livraison<input type="date" value="${ED.dateExecution||''}" onchange="ED.dateExecution=this.value"></label>`:`<label class="f">Valable jusqu'au<input type="date" id="edValid" value="${ED.validite||''}" onchange="ED.validite=this.value"></label>`}</div>
-    ${isF?`<label class="f" style="margin:0">À payer au plus tard le<input type="date" id="edEch" value="${ED.echeance||''}" onchange="ED.echeance=this.value"></label>`:''}
+    ${isF?`<label class="f" style="margin:0">À payer au plus tard le<input type="date" id="edEch" value="${ED.echeance||''}" onchange="ED.echeance=this.value"></label>
+    <p class="small muted" style="margin:10px 0 0">Vous facturez une vente passée ? Laissez la date de la facture à aujourd'hui et changez seulement la date des travaux / livraison.</p>`:''}
   </div></details>
   <details class="card" ${ED.notes?'open':''}><summary>Note pour le client</summary><label class="f" style="margin:12px 0 0"><textarea oninput="ED.notes=this.value" placeholder="Ex. : délai d'intervention, conditions particulières">${esc(ED.notes)}</textarea></label></details>
   <p class="small muted" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">TVA non applicable (franchise en base) : les montants sont nets.${bulle('tva')}</p>
@@ -597,71 +613,267 @@ function lignesHtml(){return ED.lignes.map((l,i)=>`<div class="ligne">
   <div id="fo${i}" class="row" ${l.nature==='mixte'?'':'hidden'}><div class="pu"><span class="lab">${vocab().fo}</span><input class="mini" inputmode="decimal" value="${esc(dec(l.fourn||''))}" placeholder="Ex. : prix de la terre, des matériaux" oninput="ED.lignes[${i}].fourn=this.value" aria-label="Part de fourniture"></div></div>
 </div>`).join('')}
 
+/* ============ Avoirs ============ */
+/* Un avoir annule une facture entière. Payée : il faudra rembourser. Pas payée : plus rien n'est dû. */
+function creerAvoir(f){const t=today();const a={id:uid(),numero:prochainNumero('avoir',t),date:t,factureId:f.id,factureNumero:f.numero,factureDate:f.date,clientId:f.clientId,
+    client:JSON.parse(JSON.stringify(f.client||{})),lignes:JSON.parse(JSON.stringify(f.lignes||[])),notes:'',emetteur:Object.assign({},D.entreprise),statut:f.statut==='payee'?'a_rembourser':'solde'};
+  a.cree=a.maj=new Date().toISOString();D.avoirs=D.avoirs||[];D.avoirs.push(a);f.annulee={id:a.id,numero:a.numero,date:t};f.maj=a.maj;return a}
+
+/* ============ Vérifications avant envoi ============ */
+const trousCgv=t=>String(t||'').match(/\[[^\]\n]{1,300}\]/g)||[];
+const PHRASE_COMPTANT="Paiement comptant au retrait ou à l'envoi";
+const PHRASE_ECHEANCE="Le paiement est dû à la date indiquée sur la facture (à défaut : au retrait ou à l'envoi de la pièce)";
+const pluriel=(n,mot)=>n+' '+mot+(n>1?'s':'');
+/* Ce qui manque encore à la fiche entreprise ou aux CGV (pour un document donné, ou en général si d est vide). */
+function verifs(type,d){const e=D.entreprise;const out=[];const c=(d&&d.client)||null;
+  const avecCgv=type?cgvJointes(e,type):!!(e.cgv&&String(e.cgv).trim()&&(e.cgvDevis||e.cgvFacture));
+  const particuliers=c?c.type!=='pro':D.clients.some(x=>x.type!=='pro');
+  const sansMediateur=!e.mediateurNom&&(particuliers||avecCgv);
+  if(!entrepriseOk())out.push(['Fiche entreprise incomplète','Votre nom, votre SIRET et votre adresse sont obligatoires sur vos documents.']);
+  if(sansMediateur)out.push(['Médiateur manquant','Il est obligatoire dès que vous vendez à des particuliers.']);
+  if(avecCgv){const tr=trousCgv(e.cgv).filter(x=>!(sansMediateur&&/médiateur/.test(x)));
+    if(tr.length)out.push(['CGV à terminer',`Il reste ${pluriel(tr.length,'passage')} entre crochets, par exemple « ${tr[0].length>60?tr[0].slice(0,57)+'…]':tr[0]} ». Votre client le${tr.length>1?'s':''} verra.`]);
+    if(String(e.cgv).includes(PHRASE_COMPTANT)&&delaiJ()>0)out.push(['CGV et délai de paiement différents',`Vos CGV disent « paiement comptant », mais vos factures laissent ${delaiJ()} jours pour payer.`])}
+  return out}
+const docAVerifier=(type,d)=>type!=='avoir'&&!(type==='facture'&&(d.envoyee||d.statut==='payee'||d.annulee));
+function alerteVerifs(v){return `<a class="alert" href="#/entreprise" style="display:flex;gap:10px;align-items:center;text-decoration:none"><span style="flex:1"><b>À compléter avant d'envoyer</b><br>${v.map(x=>esc(x[0])).join(' · ')}</span>${svg('chev','i chev')}</a>`}
+
 /* ============ Aperçu document ============ */
+const titreDoc=t=>t==='facture'?'FACTURE':t==='avoir'?'AVOIR':'DEVIS';
+const emetteurDoc=(type,d)=>(type!=='devis'&&d.emetteur)||D.entreprise;
+/* Les mentions de bas de page, en texte simple : utilisées par l'aperçu et par le PDF. */
+function mentionsDoc(type,d){const e=emetteurDoc(type,d);const c=d.client||{};const pro=c.type==='pro';const m=[];
+  if(type==='avoir'){m.push(`Cet avoir annule la facture n° ${d.factureNumero} du ${fdate(d.factureDate)}.`);
+    m.push(d.statut==='solde'?"Cette facture n'avait pas été payée : plus rien n'est dû.":d.statut==='rembourse'&&d.paiement?`Montant remboursé au client le ${fdate(d.paiement.date)} par ${d.paiement.mode}.`:'Ce montant sera remboursé au client.')}
+  else if(type==='facture'){m.push((d.echeance&&d.echeance>d.date?`Paiement au plus tard le ${fdate(d.echeance)}.`:'Paiement à réception de la facture.')+(e.iban?` Par virement : IBAN ${e.iban}${e.bic?' · BIC '+e.bic:''}.`:''));
+    m.push("Pas d'escompte pour paiement anticipé. En cas de retard de paiement, des pénalités au taux de trois fois le taux d'intérêt légal sont exigibles."+(pro?' Indemnité forfaitaire pour frais de recouvrement : 40 €.':''));
+    if(d.statut==='payee'&&d.paiement)m.push(`Facture acquittée le ${fdate(d.paiement.date)} par ${d.paiement.mode}.`)}
+  else m.push(`Devis gratuit, valable jusqu'au ${fdate(d.validite)}.`+(delaiJ()>0?` Paiement à ${delaiJ()} jours après facturation.`:' Paiement à réception de la facture.'));
+  if(e.assurance)m.push('Assurance professionnelle : '+e.assurance);
+  if(e.mentionLibre)m.push(e.mentionLibre);
+  if(!pro&&type!=='avoir'&&e.mediateurNom&&!cgvJointes(e,type))m.push('Médiateur de la consommation : '+texteMediateur(e)+'.');
+  if(cgvJointes(e,type))m.push('Nos conditions générales de vente sont jointes à ce document.');
+  return m}
+const libTotalDoc=t=>t==='facture'?'Net à payer':t==='avoir'?"Montant de l'avoir":'Total';
+function tamponDoc(type,d){if(type==='facture'&&d.annulee)return['ANNULÉE (avoir '+d.annulee.numero+')','bad'];if(type==='facture'&&d.statut==='payee'&&d.paiement)return['ACQUITTÉE le '+fdate(d.paiement.date),'ok'];if(type==='avoir'&&d.statut==='rembourse'&&d.paiement)return['REMBOURSÉ le '+fdate(d.paiement.date),'ok'];return null}
 function docHtml(type,d){
-  const e=d.emetteur||D.entreprise;const c=d.client||{};const isF=type==='facture';
-  const lignes=(d.lignes||[]).filter(l=>l.designation||num(l.pu));const pro=c.type==='pro';const plusieurs=new Set(lignes.map(l=>l.nature||'service')).size>1;const pts=partsDoc(d);const V=vocab(e);
+  const e=emetteurDoc(type,d);const c=d.client||{};const isF=type==='facture',isA=type==='avoir';
+  const lignes=(d.lignes||[]).filter(l=>l.designation||num(l.pu));const pro=c.type==='pro';const plusieurs=new Set(lignes.map(l=>l.nature||'service')).size>1;const pts=partsDoc(d);const V=vocab(e);const tp=tamponDoc(type,d);
   return `<div class="doc">
   <div class="hd"><div class="em">${e.logo?`<img class="logo" src="${e.logo}" alt="">`:''}<b>${esc(e.prenomNom||'Votre nom')} EI</b>${e.nomCommercial?'<br>'+esc(e.nomCommercial):''}<br>${esc(e.adresse)}<br>${esc(e.cp)} ${esc(e.ville)}<br>SIRET : ${esc(e.siret||'à compléter')}${e.tel?'<br>Tél. : '+esc(e.tel):''}${e.email?'<br>'+esc(e.email):''}</div>
-  <div class="ti"><h3>${isF?'FACTURE':'DEVIS'}</h3><div>N° <b>${esc(d.numero||'(attribué à l’enregistrement)')}</b></div><div>Date : ${fdate(d.date)}</div>${isF?`<div>Date de la prestation / livraison : ${fdate(d.dateExecution||d.date)}</div><div>Échéance : ${fdate(d.echeance)}</div>`:`<div>Valable jusqu'au : ${fdate(d.validite)}</div>`}${isF&&d.statut==='payee'?`<div class="paid">ACQUITTÉE le ${fdate(d.paiement.date)}</div>`:''}</div></div>
+  <div class="ti"><h3>${titreDoc(type)}</h3><div>N° <b>${esc(d.numero||'(attribué à l’enregistrement)')}</b></div><div>Date : ${fdate(d.date)}</div>${isF?`<div>Date de la prestation / livraison : ${fdate(d.dateExecution||d.date)}</div><div>Échéance : ${echeanceTxt(d)}</div>`:isA?`<div>Sur la facture n° ${esc(d.factureNumero)} du ${fdate(d.factureDate)}</div>`:`<div>Valable jusqu'au : ${fdate(d.validite)}</div>`}${tp?`<div class="paid" ${tp[1]==='bad'?'style="border-color:#C0262D;color:#C0262D"':''}>${esc(tp[0])}</div>`:''}</div></div>
   <div class="cl"><div style="font-size:11px;color:#666">${isF?'Facturé à':'Client'}</div><b>${esc(c.nom||'—')}</b>${c.adresse?'<br>'+esc(c.adresse):''}${c.cp||c.ville?'<br>'+esc(c.cp)+' '+esc(c.ville):''}${pro&&c.siren?'<br>SIREN : '+esc(c.siren):''}</div>
   <div style="font-size:11.5px;color:#444">Nature de l'opération : ${natureOperation(d)}</div>
   <table><thead><tr><th>Désignation</th><th class="n">Qté</th><th>Unité</th><th class="n">Prix unit.</th><th class="n">Total</th></tr></thead><tbody>
   ${lignes.map(l=>`<tr><td>${nl(l.designation)}${(l.nature==='mixte'||plusieurs)?`<div style="font-size:10.5px;color:#666">${V[l.nature||'service'][1]}</div>`:''}</td><td class="n">${dec(num(l.qte))}</td><td>${esc(l.unite)}</td><td class="n">${eur(num(l.pu))}</td><td class="n">${eur(num(l.qte)*num(l.pu))}</td></tr>`).join('')}
   </tbody></table>
-  <div class="tot">${pts.vente&&pts.service?`<div style="color:#555;font-size:11.5px"><span>${V.dv}</span><span>${eur(pts.vente)}</span></div><div style="color:#555;font-size:11.5px"><span>${V.ds}</span><span>${eur(pts.service)}</span></div>`:''}<div><span>Total HT</span><span>${eur(totalDoc(d))}</span></div><div class="big"><span>${isF?'Net à payer':'Total'}</span><span>${eur(totalDoc(d))}</span></div></div>
+  <div class="tot">${pts.vente&&pts.service?`<div style="color:#555;font-size:11.5px"><span>${V.dv}</span><span>${eur(pts.vente)}</span></div><div style="color:#555;font-size:11.5px"><span>${V.ds}</span><span>${eur(pts.service)}</span></div>`:''}<div><span>Total HT</span><span>${eur(totalDoc(d))}</span></div><div class="big"><span>${libTotalDoc(type)}</span><span>${eur(totalDoc(d))}</span></div></div>
   <p style="font-size:11.5px;margin-top:6px"><b>TVA non applicable, art. 293 B du CGI</b></p>
   ${d.notes?`<p style="margin-top:12px">${nl(d.notes)}</p>`:''}
-  <div class="mentions">
-  ${isF?`<p>Paiement au plus tard le ${fdate(d.echeance)}.${e.iban?` Par virement : IBAN ${esc(e.iban)}${e.bic?' · BIC '+esc(e.bic):''}.`:''}</p>
-    <p>Pas d'escompte pour paiement anticipé. En cas de retard de paiement, des pénalités au taux de trois fois le taux d'intérêt légal sont exigibles.${pro?' Indemnité forfaitaire pour frais de recouvrement : 40 €.':''}</p>
-    ${d.statut==='payee'?`<p>Facture acquittée le ${fdate(d.paiement.date)} par ${esc(d.paiement.mode)}.</p>`:''}`
-   :`<p>Devis gratuit, valable jusqu'au ${fdate(d.validite)}.${e.delai?` Paiement à ${esc(e.delai)} jours après facturation.`:''}</p>`}
-  ${e.assurance?`<p>Assurance professionnelle : ${nl(e.assurance)}</p>`:''}
-  ${e.mentionLibre?`<p>${nl(e.mentionLibre)}</p>`:''}
-  ${cgvJointes(e,isF)?`<p>Nos conditions générales de vente sont jointes à ce document.</p>`:''}
-  </div>
-  ${!isF?`<div class="sign"><div>Bon pour accord, date et signature du client${cgvJointes(e,isF)?', précédés de la mention « Lu et approuvé, CGV acceptées »':''} :</div></div>`:''}
-  ${cgvJointes(e,isF)?`<div class="cgv"><h4>Conditions générales de vente</h4>${nl(e.cgv)}</div>`:''}
+  <div class="mentions">${mentionsDoc(type,d).map(x=>`<p>${nl(x)}</p>`).join('')}</div>
+  ${type==='devis'?`<div class="sign"><div>Bon pour accord, date et signature du client${cgvJointes(e,type)?', précédés de la mention « Lu et approuvé, CGV acceptées »':''} :</div></div>`:''}
+  ${cgvJointes(e,type)?`<div class="cgv"><h4>Conditions générales de vente</h4>${nl(e.cgv)}</div>`:''}
   </div>`}
-const cgvJointes=(e,isF)=>!!(e.cgv&&String(e.cgv).trim()&&(isF?e.cgvFacture:e.cgvDevis));
+const cgvJointes=(e,type)=>type!=='avoir'&&!!(e.cgv&&String(e.cgv).trim()&&(type==='facture'?e.cgvFacture:e.cgvDevis));
+const listeDe=t=>t==='devis'?D.devis:t==='avoir'?(D.avoirs||(D.avoirs=[])):D.factures;
+function badgeAvoir(a){return a.statut==='rembourse'?'<span class="badge ok">Remboursé</span>':a.statut==='solde'?'<span class="badge grey">Avoir</span>':'<span class="badge warn">À rembourser</span>'}
+const badgeDoc=(t,d)=>t==='facture'?badgeFacture(d):t==='avoir'?badgeAvoir(d):badgeDevis(d);
 function vVoir(type,id){
-  const liste=type==='devis'?D.devis:D.factures;const d=parId(liste,id);if(!d){go('#/'+(type==='devis'?'devis':'factures'));return ''}
-  ED=null;const isF=type==='facture';
-  titre(d.numero,'#/'+(isF?'factures':'devis'),`<button class="icon-btn" aria-label="Plus d'actions" onclick="App.sheetActions('${type}','${id}')">${svg('more')}</button>`);
-  let h=`<div class="doc-head"><div style="flex:1;min-width:0"><div class="big">${eur(totalDoc(d))}</div><div class="muted" style="margin-top:4px">${esc((d.client||{}).nom||'')} · ${fdate(d.date)}</div></div>${isF?badgeFacture(d):badgeDevis(d)}</div>`;
+  const d=parId(listeDe(type),id);if(!d){go('#/'+(type==='devis'?'devis':'factures'));return ''}
+  ED=null;const isF=type==='facture',isA=type==='avoir';
+  titre(d.numero,'#/'+(type==='devis'?'devis':'factures'),`<button class="icon-btn" aria-label="Plus d'actions" onclick="App.sheetActions('${type}','${id}')">${svg('more')}</button>`);
+  let h=`<div class="doc-head"><div style="flex:1;min-width:0"><div class="big">${eur(totalDoc(d))}</div><div class="muted" style="margin-top:4px">${esc((d.client||{}).nom||'')} · ${fdate(d.date)}${isF&&d.envoyee?` · envoyée le ${fdate(d.envoyee)} 🔒`:''}</div></div>${badgeDoc(type,d)}</div>`;
+  if(isF&&d.annulee){const r=d.remplaceePar&&parId(D.factures,d.remplaceePar);h+=`<div class="alert info">Annulée le ${fdate(d.annulee.date)} par l'avoir <a href="#/voir/avoir/${d.annulee.id}">${esc(d.annulee.numero)}</a>.${r?` Remplacée par la facture <a href="#/voir/facture/${r.id}">${esc(r.numero)}</a>.`:''}</div>`}
+  if(isF&&d.remplace){const o=parId(D.factures,d.remplace);if(o)h+=`<div class="alert info">Elle remplace la facture <a href="#/voir/facture/${o.id}">${esc(o.numero)}</a>, annulée par un avoir.</div>`}
   if(isF&&enRetard(d))h+=`<div class="alert bad">En retard de ${daysBetween(d.echeance,today())} jours (échéance le ${fdate(d.echeance)}). Pensez à relancer le client.</div>`;
-  if(isF&&d.statut==='payee')h+=`<div class="alert info" style="background:var(--ok-soft);color:var(--ok)">Payée le ${fdate(d.paiement.date)} par ${esc(d.paiement.mode)}.</div>`;
-  h+=`<div class="quick" style="grid-template-columns:repeat(${(isF&&d.statut==='payee')?3:4},1fr)">
-    <button onclick="App.imprimer('${type}','${id}')"><span class="ic">${svg('pdf')}</span>PDF</button>
-    <button onclick="App.partager('${type}','${id}')"><span class="ic">${svg('share')}</span>${isF&&enRetard(d)?'Relancer':'Envoyer'}</button>
-    ${(!isF||d.statut!=='payee')?`<a href="#/${type}-edit/${id}"><span class="ic">${svg('edit')}</span>Modifier</a>`:''}
-    <button onclick="App.dupliquer('${type}','${id}')"><span class="ic">${svg('copy')}</span>Dupliquer</button></div>`;
-  if(!isF){h+=`<h2>Où en est ce devis ?</h2><div class="chips">${['brouillon','envoye','accepte','refuse'].map(s=>`<button class="chip ${d.statut===s?'on':''}" onclick="App.statutDevis('${id}','${s}')">${STATUTS_DEVIS[s][0]}</button>`).join('')}</div>`;
+  if(isF&&d.statut==='payee'&&d.paiement)h+=`<div class="alert info" style="background:var(--ok-soft);color:var(--ok)">Payée le ${fdate(d.paiement.date)} par ${esc(d.paiement.mode)}.</div>`;
+  if(isA)h+=`<div class="alert info">Avoir sur la facture <a href="#/voir/facture/${d.factureId}">${esc(d.factureNumero)}</a>. ${d.statut==='a_rembourser'?'Remboursez le client, puis touchez « Rembourser ».':d.statut==='rembourse'&&d.paiement?`Remboursé le ${fdate(d.paiement.date)} par ${esc(d.paiement.mode)}.`:"La facture n'était pas payée : il n'y a rien à rembourser."}</div>`;
+  const v=docAVerifier(type,d)?verifs(type,d):[];if(v.length)h+=alerteVerifs(v);
+  const b=[`<button onclick="App.pdf('${type}','${id}')"><span class="ic">${svg('pdf')}</span>PDF</button>`,`<button onclick="App.partager('${type}','${id}')"><span class="ic">${svg('share')}</span>${isF&&enRetard(d)?'Relancer':'Envoyer'}</button>`];
+  if(type==='devis')b.push(`<a href="#/devis-edit/${id}"><span class="ic">${svg('edit')}</span>Modifier</a>`);
+  else if(isF&&!d.annulee&&d.statut!=='payee')b.push(d.envoyee?`<button onclick="App.sheetCorriger('${id}')"><span class="ic">${svg('edit')}</span>Corriger</button>`:`<a href="#/facture-edit/${id}"><span class="ic">${svg('edit')}</span>Modifier</a>`);
+  if(!isA)b.push(`<button onclick="App.dupliquer('${type}','${id}')"><span class="ic">${svg('copy')}</span>Dupliquer</button>`);
+  h+=`<div class="quick" style="grid-template-columns:repeat(${b.length},1fr)">${b.join('')}</div>`;
+  if(type==='devis'){h+=`<h2>Où en est ce devis ?</h2><div class="chips">${['brouillon','envoye','accepte','refuse'].map(s=>`<button class="chip ${d.statut===s?'on':''}" onclick="App.statutDevis('${id}','${s}')">${STATUTS_DEVIS[s][0]}</button>`).join('')}</div>`;
     if(d.factureId&&parId(D.factures,d.factureId))h+=`<a class="item card" style="border:0" href="#/voir/facture/${d.factureId}"><span class="grow">Facture ${esc(parId(D.factures,d.factureId).numero)}</span>${svg('chev','i chev')}</a>`}
-  AFTER=()=>{ajusterApercu();
-    if(isF&&d.statut!=='payee')actionbar(`<div class="tot"><span class="small muted">À encaisser</span><b>${eur(totalDoc(d))}</b></div><button class="btn hi" onclick="App.sheetPayer('${id}')">${svg('euro')} Encaisser</button>`);
-    else if(!isF&&!(d.factureId&&parId(D.factures,d.factureId)))actionbar(`<div class="tot"><span class="small muted">Devis</span><b>${eur(totalDoc(d))}</b></div><button class="btn primary" onclick="App.devisVersFacture('${id}')">${svg('facture')} Facturer</button>`)};
+  AFTER=()=>{ajusterApercu();prepLogo(emetteurDoc(type,d).logo);
+    if(isF&&aEncaisser(d))actionbar(`<div class="tot"><span class="small muted">À encaisser</span><b>${eur(totalDoc(d))}</b></div><button class="btn hi" onclick="App.sheetPayer('${id}')">${svg('euro')} Encaisser</button>`);
+    else if(isA&&d.statut==='a_rembourser')actionbar(`<div class="tot"><span class="small muted">À rembourser</span><b>${eur(totalDoc(d))}</b></div><button class="btn hi" onclick="App.sheetRembourser('${id}')">${svg('euro')} Rembourser</button>`);
+    else if(type==='devis'&&!(d.factureId&&parId(D.factures,d.factureId)))actionbar(`<div class="tot"><span class="small muted">Devis</span><b>${eur(totalDoc(d))}</b></div><button class="btn primary" onclick="App.devisVersFacture('${id}')">${svg('facture')} Facturer</button>`)};
   h+=`<div class="eyebrow" style="margin:20px 0 8px">Aperçu</div><div class="paper-wrap"><div class="paper">${docHtml(type,d)}</div></div>`;
   return h}
 function ajusterApercu(){const w=document.querySelector('.paper-wrap');if(!w)return;const p=w.firstElementChild;const k=Math.min(1,w.clientWidth/640);p.style.transform='scale('+k+')';w.style.height=Math.ceil(p.offsetHeight*k)+'px'}
 window.addEventListener('resize',ajusterApercu);
 
 
+
+/* ============ PDF fait maison (fonctionne sans internet, polices standard du PDF) ============ */
+const LARG={H:[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,761,556,0,222,556,333,1000,556,556,333,1000,667,333,1000,0,611,0,0,222,222,333,333,350,556,1000,333,1000,500,333,944,0,500,667,278,333,556,556,556,556,260,556,333,737,370,556,584,333,737,333,400,584,333,333,333,556,537,278,333,333,365,556,834,834,834,611,667,667,667,667,667,667,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,500,556,556,556,556,278,278,278,278,556,556,556,556,556,556,556,584,611,556,556,556,556,500,556,500],B:[278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584,761,556,0,278,556,500,1000,556,556,333,1000,667,333,1000,0,611,0,0,278,278,500,500,350,556,1000,333,1000,556,333,944,0,500,667,278,333,556,556,556,556,280,556,333,737,370,556,584,333,737,333,400,584,333,333,333,611,556,278,333,333,365,556,834,834,834,611,722,722,722,722,722,722,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,556,556,556,556,556,278,278,278,278,611,611,611,611,611,611,611,584,611,611,611,611,611,556,611,556]};
+const WIN_EXTRA={8364:128,8218:130,402:131,8222:132,8230:133,8224:134,8225:135,710:136,8240:137,352:138,8249:139,338:140,381:142,8216:145,8217:146,8220:147,8221:148,8226:149,8211:150,8212:151,732:152,8482:153,353:154,8250:155,339:156,382:158,376:159,8239:160,8201:32,8194:32,8195:32,8199:32,8208:45,8209:45};
+const codeWin=ch=>{const c=ch.codePointAt(0);if(c===9)return 32;if(c<32)return -1;if(c<128||(c>=160&&c<=255))return c;return WIN_EXTRA[c]!==undefined?WIN_EXTRA[c]:63};
+function largeur(s,gras,taille){const W=gras?LARG.B:LARG.H;let w=0;for(const ch of String(s)){const c=codeWin(ch);if(c>=32)w+=W[c-32]||556}return w*taille/1000}
+function couper(txt,gras,taille,max){const out=[];
+  String(txt==null?'':txt).replace(/\r/g,'').replace(/ ([:;!?»])/g,'\u00a0$1').replace(/« /g,'«\u00a0').split('\n').forEach(par=>{let l='';
+    par.split(' ').forEach(m=>{const t=l?l+' '+m:m;if(largeur(t,gras,taille)<=max){l=t;return}
+      if(l)out.push(l);l='';
+      while(m&&largeur(m,gras,taille)>max){let i=m.length-1;while(i>1&&largeur(m.slice(0,i),gras,taille)>max)i--;out.push(m.slice(0,i));m=m.slice(i)}
+      l=m});
+    out.push(l)});
+  return out}
+function PdfDoc(){const W=595.28,H=841.89;const pages=[];const images=[];let cur=null;
+  const n=v=>String(Math.round(v*100)/100);
+  const col=c=>c.map(n).join(' ');
+  const str=s=>{let o='';for(const ch of String(s)){const c=codeWin(ch);if(c<0)continue;const x=String.fromCharCode(c);o+=(x==='\\'||x==='('||x===')')?'\\'+x:x}return o};
+  const P={W,H,
+    page(){cur=[];pages.push(cur)},
+    nbPages:()=>pages.length,
+    surPage(i){cur=pages[i]},
+    texte(x,y,s,o={}){const t=o.taille||9.5,g=o.gras?1:0;let xx=x;if(o.align==='right')xx=x-largeur(s,g,t);else if(o.align==='center')xx=x-largeur(s,g,t)/2;
+      cur.push(`BT ${col(o.couleur||[.07,.07,.07])} rg /F${g?2:1} ${n(t)} Tf ${n(xx)} ${n(H-y)} Td (${str(s)}) Tj ET`)},
+    trait(x1,y1,x2,y2,o={}){cur.push(`${col(o.couleur||[.8,.8,.8])} RG ${n(o.ep||.6)} w ${n(x1)} ${n(H-y1)} m ${n(x2)} ${n(H-y2)} l S`)},
+    rect(x,y,w,h,o={}){const r=o.rayon||0,X=x,Y=H-y-h;let p;
+      if(!r)p=`${n(X)} ${n(Y)} ${n(w)} ${n(h)} re`;
+      else{const k=.5523*r;p=[`${n(X+r)} ${n(Y)} m`,`${n(X+w-r)} ${n(Y)} l`,`${n(X+w-r+k)} ${n(Y)} ${n(X+w)} ${n(Y+r-k)} ${n(X+w)} ${n(Y+r)} c`,`${n(X+w)} ${n(Y+h-r)} l`,`${n(X+w)} ${n(Y+h-r+k)} ${n(X+w-r+k)} ${n(Y+h)} ${n(X+w-r)} ${n(Y+h)} c`,`${n(X+r)} ${n(Y+h)} l`,`${n(X+r-k)} ${n(Y+h)} ${n(X)} ${n(Y+h-r+k)} ${n(X)} ${n(Y+h-r)} c`,`${n(X)} ${n(Y+r)} l`,`${n(X)} ${n(Y+r-k)} ${n(X+r-k)} ${n(Y)} ${n(X+r)} ${n(Y)} c`,'h'].join(' ')}
+      cur.push((o.fond?`${col(o.fond)} rg `:'')+(o.bord?`${col(o.bord)} RG ${n(o.ep||.8)} w `:'')+p+' '+(o.fond&&o.bord?'B':o.fond?'f':'S'))},
+    image(img,x,y,w,h){let i=images.indexOf(img);if(i<0){images.push(img);i=images.length-1}cur.push(`q ${n(w)} 0 0 ${n(h)} ${n(x)} ${n(H-y-h)} cm /Im${i+1} Do Q`)},
+    fichier(titre){const objs=[null,null];const add=o=>{objs.push(o);return objs.length};
+      const f1=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+      const f2=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+      const ims=images.map(im=>add(`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.bin.length} >>\nstream\n${im.bin}\nendstream`));
+      const res=`<< /Font << /F1 ${f1} 0 R /F2 ${f2} 0 R >>${ims.length?` /XObject << ${ims.map((id,i)=>`/Im${i+1} ${id} 0 R`).join(' ')} >>`:''} >>`;
+      const kids=pages.map(ops=>{const c=ops.join('\n');const cid=add(`<< /Length ${c.length} >>\nstream\n${c}\nendstream`);return add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources ${res} /Contents ${cid} 0 R >>`)});
+      objs[0]='<< /Type /Catalog /Pages 2 0 R >>';
+      objs[1]=`<< /Type /Pages /Kids [${kids.map(k=>k+' 0 R').join(' ')}] /Count ${kids.length} >>`;
+      const info=add(`<< /Title (${str(titre||'')}) /Producer (Kwik) /CreationDate (D:${new Date().toISOString().replace(/[-:T]/g,'').slice(0,14)}Z) >>`);
+      let out='%PDF-1.4\n%\xE2\xE3\xCF\xD3\n';const off=[];
+      objs.forEach((o,i)=>{off.push(out.length);out+=`${i+1} 0 obj\n${o}\nendobj\n`});
+      const xref=out.length;
+      out+=`xref\n0 ${objs.length+1}\n0000000000 65535 f \n`+off.map(o=>String(o).padStart(10,'0')+' 00000 n \n').join('')+`trailer\n<< /Size ${objs.length+1} /Root 1 0 R /Info ${info} 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+      const u=new Uint8Array(out.length);for(let i=0;i<out.length;i++)u[i]=out.charCodeAt(i)&255;return u}};
+  return P}
+/* Le logo est converti une fois en JPEG pour le PDF (gardé en mémoire). */
+const LOGOS={},LOGOS_P={};
+function prepLogo(src){if(!src)return Promise.resolve(null);if(LOGOS_P[src])return LOGOS_P[src];
+  return LOGOS_P[src]=new Promise(res=>{const img=new Image();
+    img.onload=()=>{try{const k=Math.min(1,320/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(img.width*k));c.height=Math.max(1,Math.round(img.height*k));
+      const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(img,0,0,c.width,c.height);
+      LOGOS[src]={bin:atob(c.toDataURL('image/jpeg',.9).split(',')[1]),w:c.width,h:c.height}}catch(e){LOGOS[src]=null}res(LOGOS[src])};
+    img.onerror=()=>{LOGOS[src]=null;res(null)};img.src=src})}
+const nomFichier=(type,d)=>((type==='devis'?'Devis ':type==='avoir'?'Avoir ':'Facture ')+d.numero+((d.client&&d.client.nom)?' '+d.client.nom:'')).replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim();
+function pdfDocument(type,d){
+  const e=emetteurDoc(type,d);const c=d.client||{};const isF=type==='facture',isA=type==='avoir';const pro=c.type==='pro';
+  const lignes=(d.lignes||[]).filter(l=>l.designation||num(l.pu));const plusieurs=new Set(lignes.map(l=>l.nature||'service')).size>1;const pts=partsDoc(d);const V=vocab(e);
+  const P=PdfDoc();const M=42,R=P.W-M,CW=R-M,BAS=P.H-58;
+  const BLEU=[.106,.165,.62],GRIS=[.4,.4,.43],TRAIT=[.88,.89,.93];
+  let y=0;const page=()=>{P.page();y=M};
+  const ecrire=(lignesTxt,o,lh,x=M)=>lignesTxt.forEach(l=>{if(y+lh>BAS)page();y+=lh;if(l)P.texte(x,y,l,o)});
+  page();
+  // En-tête : l'émetteur à gauche
+  let yl=M;const logo=e.logo&&LOGOS[e.logo];
+  if(logo){const k=Math.min(110/logo.w,50/logo.h);P.image(logo,M,yl,logo.w*k,logo.h*k);yl+=logo.h*k+6}
+  const gauche=(s,o={})=>couper(s,o.gras,o.taille||9.5,CW*.48).forEach(l=>{yl+=12.5;P.texte(M,yl,l,o)});
+  gauche(`${e.prenomNom||'Votre nom'} EI`,{gras:1,taille:10.5});
+  if(e.nomCommercial)gauche(e.nomCommercial);
+  if(e.adresse)gauche(e.adresse);
+  if(e.cp||e.ville)gauche(`${e.cp||''} ${e.ville||''}`.trim());
+  gauche('SIRET : '+(e.siret||'à compléter'));
+  if(e.tel)gauche('Tél. : '+e.tel);
+  if(e.email)gauche(e.email);
+  // À droite : le titre, le numéro et les dates
+  let yr=M+18;P.texte(R,yr,titreDoc(type),{gras:1,taille:20,couleur:BLEU,align:'right'});yr+=5;
+  const droite=(s,o={})=>{yr+=12.5;P.texte(R,yr,s,Object.assign({align:'right'},o))};
+  droite('N° '+(d.numero||''),{gras:1});droite('Date : '+fdate(d.date));
+  if(isF){droite('Date de la prestation / livraison : '+fdate(d.dateExecution||d.date));droite('Échéance : '+echeanceTxt(d))}
+  else if(isA)droite(`Sur la facture n° ${d.factureNumero} du ${fdate(d.factureDate)}`);
+  else droite("Valable jusqu'au : "+fdate(d.validite));
+  const tp=tamponDoc(type,d);
+  if(tp){const cl=tp[1]==='bad'?[.75,.15,.18]:[.08,.48,.26];const w=largeur(tp[0],1,9.5)+18;yr+=9;P.rect(R-w,yr,w,21,{bord:cl,ep:1.4,rayon:4});P.texte(R-9,yr+14.5,tp[0],{gras:1,couleur:cl,align:'right'});yr+=21}
+  y=Math.max(yl,yr)+20;
+  // Le client, dans un cadre à droite
+  const bw=CW*.48,bx=R-bw;const cli=[];
+  const lc=(s,o={})=>couper(s,o.gras,9.5,bw-20).forEach(l=>cli.push([l,o]));
+  lc(c.nom||'—',{gras:1});if(c.adresse)lc(c.adresse);if(c.cp||c.ville)lc(`${c.cp||''} ${c.ville||''}`.trim());if(pro&&c.siren)lc('SIREN : '+c.siren);
+  const bh=22+cli.length*12.5+8;
+  P.rect(bx,y,bw,bh,{bord:[.8,.8,.87],rayon:6});
+  P.texte(bx+10,y+15,isF?'Facturé à':'Client',{taille:8,couleur:GRIS});
+  cli.forEach((l,i)=>P.texte(bx+10,y+16+12.5*(i+1),l[0],l[1]));
+  y+=bh+18;
+  P.texte(M,y,"Nature de l'opération : "+natureOperation(d),{taille:8.5,couleur:[.27,.27,.27]});y+=8;
+  // Le tableau des lignes
+  const cQte=R-208,cUni=R-198,cPu=R-82,cTot=R-6,desW=cQte-34-(M+6);
+  const entete=()=>{P.rect(M,y,CW,20,{fond:[.933,.941,.98]});P.trait(M,y+20,R,y+20,{couleur:[.72,.75,.85]});const o={gras:1,taille:8.5},od=Object.assign({align:'right'},o);
+    P.texte(M+6,y+13.5,'Désignation',o);P.texte(cQte,y+13.5,'Qté',od);P.texte(cUni,y+13.5,'Unité',o);P.texte(cPu,y+13.5,'Prix unit.',od);P.texte(cTot,y+13.5,'Total',od);y+=20};
+  entete();
+  lignes.forEach(l=>{const ls=couper(l.designation,0,9.5,desW);const sous=(l.nature==='mixte'||plusieurs)?V[l.nature||'service'][1]:'';
+    const h=15+(ls.length-1)*12.5+(sous?11:0)+8;if(y+h>BAS){page();entete()}
+    const b=y+15;ls.forEach((t,i)=>P.texte(M+6,b+i*12.5,t));
+    if(sous)P.texte(M+6,b+(ls.length-1)*12.5+11,sous,{taille:7.5,couleur:GRIS});
+    P.texte(cQte,b,dec(num(l.qte)),{align:'right'});if(l.unite)P.texte(cUni,b,couper(l.unite,0,9.5,58)[0]);
+    P.texte(cPu,b,eur(num(l.pu)),{align:'right'});P.texte(cTot,b,eur(num(l.qte)*num(l.pu)),{align:'right'});
+    y+=h;P.trait(M,y,R,y,{couleur:TRAIT})});
+  // Les totaux
+  const tl=[];const gris={taille:8.5,couleur:[.33,.33,.33]};
+  if(pts.vente&&pts.service){tl.push([V.dv,eur(pts.vente),gris]);tl.push([V.ds,eur(pts.service),gris])}
+  tl.push(['Total HT',eur(totalDoc(d)),{}]);
+  if(y+tl.length*15+60>BAS)page();
+  const tx=M+CW*.5;y+=6;
+  tl.forEach(t=>{y+=15;P.texte(tx+6,y,t[0],t[2]);P.texte(R-6,y,t[1],Object.assign({align:'right'},t[2]))});
+  y+=8;P.trait(tx,y,R,y,{couleur:[.07,.07,.07],ep:1.5});y+=17;
+  P.texte(tx+6,y,libTotalDoc(type),{gras:1,taille:11.5});P.texte(R-6,y,eur(totalDoc(d)),{gras:1,taille:11.5,align:'right'});
+  y+=8;ecrire(['TVA non applicable, art. 293 B du CGI'],{gras:1,taille:8.5},14);
+  if(d.notes){y+=6;ecrire(couper(d.notes,0,9.5,CW),{},12.5)}
+  // Les mentions
+  if(y+30>BAS)page();
+  y+=12;P.trait(M,y,R,y,{couleur:TRAIT});y+=2;
+  mentionsDoc(type,d).forEach(par=>{ecrire(couper(par,0,8.5,CW),{taille:8.5,couleur:[.2,.2,.22]},11.5);y+=3});
+  // La signature (devis)
+  if(type==='devis'){const sw=CW*.55,sx=R-sw;const sl=couper('Bon pour accord, date et signature du client'+(cgvJointes(e,type)?', précédés de la mention « Lu et approuvé, CGV acceptées »':'')+' :',0,8.5,sw-16);
+    const sh=Math.max(80,sl.length*11+52);if(y+16+sh>BAS)page();y+=14;P.rect(sx,y,sw,sh,{bord:[.73,.73,.75],rayon:6});sl.forEach((l,i)=>P.texte(sx+8,y+14+i*11,l,{taille:8.5}));y+=sh}
+  // Les CGV, sur deux colonnes à partir d'une nouvelle page
+  if(cgvJointes(e,type)){page();P.texte(M,y+12,'Conditions générales de vente',{gras:1,taille:12});y+=24;
+    const cw=(CW-22)/2,lh=10;const L=[];
+    String(e.cgv).replace(/\r/g,'').split('\n').forEach(par=>{const t=/^\d{1,2}\. \S/.test(par)&&par.length<70;couper(par,t,7.6,cw).forEach(l=>L.push([l,t]))});
+    while(L.length&&!L[L.length-1][0])L.pop();
+    const cap=Math.floor((BAS-y)/lh);
+    if(L.length<=2*cap){// tout tient sur une page : deux colonnes équilibrées, coupées de préférence entre deux paragraphes
+      const mi=Math.ceil(L.length/2);let k=mi;for(let j=0;j<=5;j++){if(mi+j<=cap&&mi+j<L.length&&!L[mi+j-1][0]){k=mi+j;break}if(mi-j>0&&!L[mi-j-1][0]){k=mi-j;break}}
+      const ecrireCol=(arr,x)=>{let yy=y;arr.forEach(([l,t],i)=>{if(i===0&&!l)return;yy+=lh;if(l)P.texte(x,yy,l,{taille:7.6,gras:t,couleur:[.13,.13,.15]})})};
+      k=Math.min(cap,Math.max(k,L.length-cap));ecrireCol(L.slice(0,k),M);ecrireCol(L.slice(k),M+cw+22)}
+    else{let cx=M,y0=y;
+      L.forEach(([l,t])=>{if(y+lh>BAS){if(cx===M){cx=M+cw+22;y=y0}else{page();cx=M;y0=y}}if(y===y0&&!l)return;y+=lh;if(l)P.texte(cx,y,l,{taille:7.6,gras:t,couleur:[.13,.13,.15]})})}}
+  // Pied de page
+  const np=P.nbPages();const pied=`${titreDoc(type).charAt(0)+titreDoc(type).slice(1).toLowerCase()} ${d.numero||''} · ${e.prenomNom||''} EI · SIRET ${e.siret||''}`;
+  for(let i=0;i<np;i++){P.surPage(i);P.texte(M,P.H-30,pied,{taille:7.5,couleur:GRIS});P.texte(R,P.H-30,`Page ${i+1} / ${np}`,{taille:7.5,couleur:GRIS,align:'right'})}
+  return P.fichier(nomFichier(type,d))}
+function telechargerFichier(f){const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
+/* Une facture qui « sort » de Kwik (PDF, envoi, impression) est verrouillée. Juste avant, on reprend la fiche entreprise à jour. */
+function avantSortie(type,d){if(type==='facture'&&!d.envoyee&&d.statut!=='payee'&&!d.annulee)d.emetteur=Object.assign({},D.entreprise)}
+function marquerEnvoye(type,d,viaPdf){let ch=false;if(type==='facture'&&!d.envoyee){d.envoyee=today();ch=true}if(type==='devis'&&!viaPdf&&d.statut==='brouillon'){d.statut='envoye';ch=true}if(ch){d.maj=new Date().toISOString();enregistrer()}}
+async function fichierPdf(type,d){avantSortie(type,d);const e=emetteurDoc(type,d);if(e.logo&&!LOGOS[e.logo])await prepLogo(e.logo);
+  return new File([pdfDocument(type,d)],nomFichier(type,d)+'.pdf',{type:'application/pdf'})}
+
 /* ============ Déclaration URSSAF ============ */
-function periodesDecl(){const mens=(D.params.periodicite||'trimestrielle')==='mensuelle';const t=today();let y=+t.slice(0,4),m=+t.slice(5,7);const out=[];
-  if(mens){for(let k=0;k<7;k++){const mm=((m-1-k)%12+12)%12+1,yy=y+Math.floor((m-1-k)/12);const ny=mm===12?yy+1:yy,nm=mm===12?1:mm+1;
-      out.push({cle:`M${yy}-${pad(mm)}`,lib:MOIS[mm-1].replace(/^./,c=>c.toUpperCase())+' '+yy,de:`${yy}-${pad(mm)}-01`,a:`${yy}-${pad(mm)}-31`,limite:addDays(`${ny}-${pad(nm)}-01`,32).slice(0,8)+'01',enCours:k===0})}
-    out.forEach(o=>{o.limite=addDays(o.limite,-1)})}
-  else{let q=Math.floor((m-1)/3);for(let k=0;k<5;k++){const qq=((q-k)%4+4)%4,yy=y+Math.floor((q-k)/4);const lim=['04-30','07-31','10-31','01-31'][qq];
-      out.push({cle:`T${yy}-${qq+1}`,lib:`${qq+1}${qq?'e':'er'} trimestre ${yy}`,de:`${yy}-${pad(qq*3+1)}-01`,a:`${yy}-${pad(qq*3+3)}-31`,limite:(qq===3?yy+1:yy)+'-'+lim,enCours:k===0})}}
-  out.forEach(o=>{const e=encaisse(o.de,o.a);o.vente=e.vente;o.service=e.service;o.cotis=e.cotis;o.fait=(D.declarations||{})[o.cle]});return out}
+/* Début d'activité : la date saisie, sinon la première facture, sinon aujourd'hui (pour ne jamais inventer de retard). */
+function debutActivite(){const d=D.entreprise.debutActivite;if(d)return d;
+  const ds=[...D.factures.map(f=>f.date),...D.factures.filter(f=>f.paiement).map(f=>f.paiement.date)].filter(Boolean).sort();return ds[0]&&ds[0]<today()?ds[0]:today()}
+const moisDebut=(y,m)=>{y+=Math.floor((m-1)/12);m=((m-1)%12+12)%12+1;return `${y}-${pad(m)}-01`};
+function periodesDecl(){const mens=(D.params.periodicite||'trimestrielle')==='mensuelle';const L=mens?1:3;const t=today();const y=+t.slice(0,4),m=+t.slice(5,7);
+  const m0=mens?m:Math.floor((m-1)/3)*3+1;const deb=debutActivite();const avance=mens?3:1;let out=[];
+  for(let k=-avance;k<(mens?7:5);k++){const sm=m0-k*L;const de=moisDebut(y,sm);const fin=addDays(moisDebut(y,sm+L),-1);const yy=+de.slice(0,4),mm=+de.slice(5,7);
+    out.push({cle:mens?`M${yy}-${pad(mm)}`:`T${yy}-${(mm+2)/3}`,lib:mens?MOIS[mm-1].replace(/^./,c=>c.toUpperCase())+' '+yy:`${(mm+2)/3}${mm>1?'e':'er'} trimestre ${yy}`,de,a:fin,fin,limite:addDays(moisDebut(y,sm+L+1),-1)})}
+  out=out.filter(o=>o.fin>=deb);
+  // Première déclaration : le mois (ou trimestre) de début est regroupé avec les 3 mois (ou le trimestre) qui suivent.
+  if(D.entreprise.debutActivite&&out.length>avance&&out[out.length-1].de<=deb){const i=out.length-1-avance;const s=out[i];s.de=deb;s.lib=`Du ${fdate(deb)} au ${fdate(s.fin)}`;s.premiere=true;out=out.slice(0,i+1)}
+  out=out.filter(o=>o.de<=t);
+  out.forEach(o=>{o.enCours=o.fin>=t;const e=encaisse(o.de,o.a);o.vente=e.vente;o.service=e.service;o.cotis=e.cotis;o.fait=(D.declarations||{})[o.cle]});return out}
 function aDeclarer(){return periodesDecl().filter(o=>!o.enCours&&!o.fait)}
 function vUrssaf(){titre('Déclarer à l\'URSSAF','#/accueil','');const P=periodesDecl();const cible=P.find(o=>!o.enCours&&!o.fait);const cur=P[0];
   const ligneCase=(lib,v,aide)=>`<div class="card" style="margin-bottom:10px"><div class="small muted">Case à remplir</div><b style="display:block;margin:2px 0 8px">${lib}</b><div style="display:flex;align-items:center;gap:10px"><span style="font:800 30px var(--font-d);flex:1" class="num">${Math.round(v)} €</span><button class="btn sm" onclick="App.copierTexte('${Math.round(v)}')">${svg('copy')} Copier</button></div>${aide?`<div class="small muted" style="margin-top:6px">${aide}</div>`:''}</div>`;
   let h=`<div class="f" style="margin-bottom:16px"><span style="font-size:13.5px;font-weight:600;color:var(--muted)">Je déclare…</span><div class="seg">${[['mensuelle','Chaque mois'],['trimestrielle','Chaque trimestre']].map(([k,l])=>`<label><input type="radio" name="per" ${(D.params.periodicite||'trimestrielle')===k?'checked':''} onchange="App.periodicite('${k}')"><span>${l}</span></label>`).join('')}</div></div>`;
+  if(!D.entreprise.debutActivite)h+=`<div class="alert info">Indiquez votre date de début d'activité dans <a href="#/entreprise">Mon entreprise</a> : Kwik saura quand tombe votre première déclaration.</div>`;
   if(cible){const retard=cible.limite<today();
     h+=`<div class="hero" style="margin-top:0"><div class="l">À déclarer maintenant</div><div class="v" style="font-size:28px">${cible.lib}</div><div class="split"><div class="mark"><b>${fdate(cible.limite)}</b><span>${retard?'Date limite dépassée':'Date limite'}</span></div><div><b>${eur(cible.cotis)}</b><span>Cotisations estimées</span></div></div></div>
+    ${cible.premiere?`<p class="small muted">C'est votre première déclaration : elle regroupe le début de votre activité et ${(D.params.periodicite||'trimestrielle')==='mensuelle'?'les 3 mois suivants':'le trimestre suivant'}. Vérifiez la date limite sur votre espace URSSAF.</p>`:''}
     <h2>1. Ouvrez votre espace URSSAF</h2><a class="btn primary block" href="https://www.autoentrepreneur.urssaf.fr/" target="_blank" rel="noopener">Aller sur autoentrepreneur.urssaf.fr</a>
     <p class="small muted">Connectez-vous, puis choisissez « Déclarer et payer ».</p>
     <h2>2. Recopiez ces montants</h2>
@@ -670,13 +882,13 @@ function vUrssaf(){titre('Déclarer à l\'URSSAF','#/accueil','');const P=period
     <p class="small muted">Les montants sont arrondis à l'euro, comme le demande l'URSSAF. Si une case vaut 0, indiquez 0 : il faut déclarer même quand on n'a rien encaissé.</p>
     <h2>3. Validez et payez</h2><p class="small muted" style="margin-top:-4px">L'URSSAF calcule vos cotisations (environ ${eur(cible.cotis)}) et vous propose de payer.</p>
     <button class="btn hi block" onclick="App.declare('${cible.cle}')">${svg('check')} J'ai déclaré ${cible.lib}</button>`}
-  else h+=`<div class="card aside"><span class="em">✅</span><span><b>Vous êtes à jour</b><br><span class="small muted">Prochaine déclaration : ${cur.lib}, avant le ${fdate(cur.limite)}.</span></span></div>`;
+  else h+=`<div class="card aside"><span class="em">✅</span><span><b>Vous êtes à jour</b><br><span class="small muted">${cur?`${cur.premiere?'Votre première déclaration':'Prochaine déclaration'} : ${cur.lib.replace(/^Du/,'du')}, avant le ${fdate(cur.limite)}.`:'Rien à déclarer pour l’instant.'}</span></span></div>`;
   h+=`<h2>Historique</h2><div class="list">${P.map(o=>`<div class="item"><span class="grow"><span class="t" style="display:block">${o.lib}</span><span class="s" style="display:block">Ventes ${Math.round(o.vente)} € · Services ${Math.round(o.service)} €</span></span><span class="end">${o.enCours?'<span class="badge grey">En cours</span>':o.fait?`<span class="badge ok">Déclaré</span>`:`<span class="badge ${o.limite<today()?'bad':'warn'}">Avant le ${fdate(o.limite).slice(0,5)}</span>`}${o.fait?`<button class="btn sm ghost" style="min-height:28px;padding:2px 8px;font-size:12px" onclick="App.declare('${o.cle}',true)">Annuler</button>`:''}</span></div>`).join('')}</div>
   <p class="small muted">Les montants viennent des factures marquées « payées » : c'est la date d'encaissement qui compte.</p>`;
   return h}
 
 /* ============ Achats ============ */
-function annees(){const s=new Set([today().slice(0,4)]);D.factures.forEach(f=>f.paiement&&s.add(f.paiement.date.slice(0,4)));D.achats.forEach(a=>s.add(a.date.slice(0,4)));return [...s].sort().reverse()}
+function annees(){const s=new Set([today().slice(0,4)]);D.factures.forEach(f=>f.paiement&&s.add(f.paiement.date.slice(0,4)));(D.avoirs||[]).forEach(a=>a.paiement&&s.add(a.paiement.date.slice(0,4)));D.achats.forEach(a=>s.add(a.date.slice(0,4)));return [...s].sort().reverse()}
 function selAnnee(base,y){const a=annees();return a.length>1?`<div class="chips">${a.map(x=>`<a class="chip ${x===y?'on':''}" href="#/${base}/${x}">${x}</a>`).join('')}</div>`:''}
 function vAchats(y){y=y||today().slice(0,4);titre('Registre des achats','#/accueil');
   const l=D.achats.filter(a=>a.date.startsWith(y)).sort((a,b)=>b.date.localeCompare(a.date));const tot=r2(l.reduce((s,a)=>s+num(a.montant),0));
@@ -695,10 +907,14 @@ function vAchatEdit(id){const a=id&&id!=='nouveau'?parId(D.achats,id):{id:'',dat
   </form>`}
 
 /* ============ Livre des recettes ============ */
-function recettes(y){return D.factures.filter(f=>f.statut==='payee'&&f.paiement&&f.paiement.date.startsWith(y)).sort((a,b)=>a.paiement.date.localeCompare(b.paiement.date)||a.numero.localeCompare(b.numero))}
+/* Le livre des recettes : les factures encaissées, moins les avoirs remboursés. */
+function recettes(y){const l=[];
+  D.factures.forEach(f=>{if(f.statut==='payee'&&f.paiement&&f.paiement.date.startsWith(y))l.push({type:'facture',d:f,date:f.paiement.date,mode:f.paiement.mode,signe:1})});
+  (D.avoirs||[]).forEach(a=>{if(a.statut==='rembourse'&&a.paiement&&a.paiement.date.startsWith(y))l.push({type:'avoir',d:a,date:a.paiement.date,mode:a.paiement.mode,signe:-1})});
+  return l.sort((a,b)=>a.date.localeCompare(b.date)||a.d.numero.localeCompare(b.d.numero))}
 function vRecettes(y){y=y||today().slice(0,4);titre('Livre des recettes','#/accueil');const l=recettes(y);const e=encaisse(y+'-01-01',y+'-12-31');
   return selAnnee('recettes',y)+`<div class="kpis"><div class="kpi"><div class="l">Ventes ${y}</div><div class="v">${eur(e.vente)}</div></div><div class="kpi"><div class="l">Services ${y}</div><div class="v">${eur(e.service)}</div></div></div>`+
-  (l.length?`<div class="card scroll"><table class="t" style="margin:0"><thead><tr><th>Encaissé le</th><th>Facture</th><th>Client</th><th>Moyen</th><th class="n">Montant</th></tr></thead><tbody>${l.map(f=>`<tr><td>${fdate(f.paiement.date)}</td><td><a href="#/voir/facture/${f.id}">${esc(f.numero)}</a></td><td>${esc(f.client.nom)}</td><td>${esc(f.paiement.mode)}</td><td class="n">${eur(totalDoc(f))}</td></tr>`).join('')}</tbody><tfoot><tr><th colspan="4">Total</th><th class="n">${eur(e.total)}</th></tr></tfoot></table></div>
+  (l.length?`<div class="card scroll"><table class="t" style="margin:0"><thead><tr><th>Date</th><th>Pièce et client</th><th class="n">Montant</th></tr></thead><tbody>${l.map(r=>`<tr><td style="white-space:nowrap">${fdate(r.date)}</td><td><a href="#/voir/${r.type}/${r.d.id}" style="white-space:nowrap">${esc(r.d.numero)}</a><br><span class="small muted">${esc(r.d.client.nom)}</span></td><td class="n" style="white-space:nowrap">${eur(r.signe*totalDoc(r.d))}<br><span class="small muted">${esc(r.mode)}</span></td></tr>`).join('')}</tbody><tfoot><tr><th colspan="2">Total</th><th class="n">${eur(e.total)}</th></tr></tfoot></table></div>
   <button class="btn ghost block" onclick="App.csvRecettes('${y}')">Exporter en tableur (CSV)</button>`:vide_('Le livre se remplit tout seul quand vous encaissez une facture.','euro'))}
 
 /* ============ Entreprise ============ */
@@ -708,6 +924,8 @@ function vEntreprise(){titre('Mon entreprise','#/accueil','');const e=D.entrepri
   <p class="hint">La mention « EI » (entrepreneur individuel) est ajoutée toute seule sur vos documents.</p>
   <label class="f">Nom commercial (facultatif)<input name="nomCommercial" value="${esc(e.nomCommercial)}"></label>
   <label class="f">SIRET ${bulle('siret')}<input name="siret" inputmode="numeric" required value="${esc(e.siret)}" placeholder="14 chiffres"></label>
+  <label class="f">Date de début d'activité<input type="date" name="debutActivite" value="${esc(e.debutActivite)}"></label>
+  <p class="hint">Elle est sur votre attestation d'immatriculation. Elle sert à votre calendrier URSSAF.</p>
   <label class="f">Adresse<input name="adresse" required value="${esc(e.adresse)}"></label>
   <div class="grid2"><label class="f">Code postal<input name="cp" inputmode="numeric" value="${esc(e.cp)}"></label><label class="f">Ville<input name="ville" value="${esc(e.ville)}"></label></div>
   <div class="grid2"><label class="f">Téléphone<input name="tel" type="tel" value="${esc(e.tel)}"></label><label class="f">E-mail<input name="email" type="email" value="${esc(e.email)}"></label></div>
@@ -719,6 +937,7 @@ function vEntreprise(){titre('Mon entreprise','#/accueil','');const e=D.entrepri
   </div>
   <h2>Paiement</h2><div class="card">
   <label class="f">Délai de paiement (jours)<input name="delai" inputmode="numeric" value="${esc(e.delai)}"></label>
+  <p class="hint">0 = paiement à réception de la facture.</p>
   <label class="f">IBAN<input name="iban" value="${esc(e.iban)}" placeholder="Pour être payé par virement"></label>
   <label class="f" style="margin:0">BIC<input name="bic" value="${esc(e.bic)}"></label>
   </div>
@@ -729,7 +948,8 @@ function vEntreprise(){titre('Mon entreprise','#/accueil','');const e=D.entrepri
   <h2>Conditions générales de vente ${bulle('cgv')}</h2><div class="card">
   <p class="hint" style="margin:0 0 12px">Les CGV expliquent vos règles (paiement, livraison, retours, garanties). Elles s'impriment en page 2 de vos documents.</p>
   <div class="btns" style="margin-top:0"><button type="button" class="btn sm ghost" onclick="App.modeleCgv('vente')">Modèle vente d'objets</button><button type="button" class="btn sm ghost" onclick="App.modeleCgv('service')">Modèle prestations</button></div>
-  <label class="f"><textarea name="cgv" id="cgvTxt" style="min-height:180px" placeholder="Choisissez un modèle ci-dessus, puis adaptez-le.">${esc(e.cgv)}</textarea></label>
+  <div id="trousInfo">${infoTrous(e.cgv)}</div>
+  <label class="f"><textarea name="cgv" id="cgvTxt" style="min-height:180px" placeholder="Choisissez un modèle ci-dessus, puis adaptez-le." oninput="App.majTrous()">${esc(e.cgv)}</textarea></label>
   <div class="grid2"><label class="f">Médiateur ${bulle('mediateur')}<input name="mediateurNom" value="${esc(e.mediateurNom)}" placeholder="Nom du médiateur"></label><label class="f">Son site<input name="mediateurSite" value="${esc(e.mediateurSite)}" placeholder="www…"></label></div>
   <label class="check"><input type="checkbox" name="cgvDevis" ${e.cgvDevis?'checked':''}> Joindre aux devis</label>
   <label class="check" style="padding-top:0"><input type="checkbox" name="cgvFacture" ${e.cgvFacture?'checked':''}> Joindre aux factures</label>
@@ -745,6 +965,10 @@ function vEntreprise(){titre('Mon entreprise','#/accueil','');const e=D.entrepri
   <button class="btn primary block" style="margin-top:6px">Enregistrer</button>
   </form>`}
 
+function infoTrous(txt){const n=trousCgv(txt).length;const comptant=String(txt||'').includes(PHRASE_COMPTANT)&&delaiJ()>0;
+  return (n?`<div class="alert"><b>Il reste ${pluriel(n,'passage')} entre crochets [ ]</b><br>Remplacez-les par vos propres mots : sinon, vos clients les verront.<div style="margin-top:8px"><button type="button" class="btn sm" style="background:var(--surface);color:var(--ink)" onclick="App.trouSuivant()">Aller au passage suivant</button></div></div>`:'')+
+    (comptant?`<div class="alert">Vos CGV disent « paiement comptant », mais vos factures laissent ${delaiJ()} jours pour payer.<div style="margin-top:8px"><button type="button" class="btn sm" style="background:var(--surface);color:var(--ink)" onclick="App.phraseEcheance()">Corriger la phrase</button></div></div>`:'')}
+
 /* ============ Sauvegarde ============ */
 function vSauvegarde(){titre('Sauvegarde','#/accueil','');const ds=D.derniereSauvegarde;
   return `<div class="card"><h2 style="margin-top:0">Exporter mes données</h2><p class="small muted">Crée un fichier avec vos clients, devis, factures et achats. Gardez-le en lieu sûr (mail à vous-même, Drive). Il permet de tout retrouver sur un autre téléphone.</p>
@@ -758,7 +982,7 @@ function vAide(){titre('Installer et aide','#/accueil','');
   <p><b>Android (Chrome)</b> : menu ⋮ en haut à droite, puis « Installer l'application » ou « Ajouter à l'écran d'accueil ».</p>
   <p><b>iPhone (Safari)</b> : bouton Partager (carré avec une flèche), puis « Sur l'écran d'accueil ».</p>
   <p class="small muted" style="margin-bottom:0">Ensuite Kwik s'ouvre comme les autres applis, même sans internet.</p></div>
-  <div class="card"><h2 style="margin-top:0">Faire un PDF</h2><p style="margin-bottom:0">Sur un devis ou une facture, touchez « PDF », puis « Enregistrer au format PDF » (Android). Sur iPhone, écartez deux doigts sur l'aperçu d'impression, puis Partager. Vous pouvez ensuite l'envoyer par mail ou WhatsApp.</p></div>
+  <div class="card"><h2 style="margin-top:0">Envoyer un PDF</h2><p>Sur un devis ou une facture, touchez « Envoyer » : Kwik crée le PDF et l'attache à un message tout prêt. Choisissez ensuite Mail, WhatsApp ou SMS.</p><p style="margin-bottom:0">« PDF » crée seulement le fichier, pour l'enregistrer ou l'imprimer. Une facture qui est sortie de Kwik est verrouillée : pour la corriger, Kwik crée un avoir.</p></div>
   <div class="card"><h2 style="margin-top:0">Bon à savoir</h2>
   <p>• Les numéros de facture se suivent sans trou, comme l'exige la loi. Une facture ne se supprime pas.</p>
   <p>• Le livre des recettes se remplit quand vous encaissez une facture.</p>
@@ -774,9 +998,10 @@ function telecharger(nom,contenu,type){const blob=new Blob([contenu],{type});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nom;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 function csv(lignes){return '﻿'+lignes.map(l=>l.map(v=>{v=typeof v==='number'?dec(v):String(v==null?'':v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(';')).join('\r\n')}
 function messageDoc(type,d){const e=D.entreprise;const c=d.client||{};const nom=c.type==='pro'?'':(c.nom||'').replace(/^(M\.|Mme|Monsieur|Madame)\s+/i,'');
+  if(type==='avoir')return `Bonjour${nom?' '+nom:''},\n\nVoici l'avoir ${d.numero} qui annule la facture ${d.factureNumero}${d.statut==='solde'?' : vous ne me devez plus rien pour cette facture':d.statut==='rembourse'?' : je vous ai remboursé '+eur(totalDoc(d)):' : je vous rembourse '+eur(totalDoc(d))+' très vite'}.\n\nBien cordialement,\n${e.prenomNom||''}${e.tel?'\n'+e.tel:''}`;
   if(type==='devis')return `Bonjour${nom?' '+nom:''},\n\nVoici mon devis ${d.numero} d'un montant de ${eur(totalDoc(d))}, valable jusqu'au ${fdate(d.validite)}.\n\nN'hésitez pas si vous avez des questions.\n\n${e.prenomNom||''}${e.tel?'\n'+e.tel:''}`;
   if(enRetard(d))return `Bonjour${nom?' '+nom:''},\n\nSauf erreur de ma part, la facture ${d.numero} de ${eur(totalDoc(d))}, arrivée à échéance le ${fdate(d.echeance)}, n'a pas encore été réglée.\n\nMerci de bien vouloir procéder au paiement${e.iban?' par virement (IBAN '+e.iban+')':''}.\n\nBien cordialement,\n${e.prenomNom||''}${e.tel?'\n'+e.tel:''}`;
-  return `Bonjour${nom?' '+nom:''},\n\nVoici ma facture ${d.numero} d'un montant de ${eur(totalDoc(d))}, à régler avant le ${fdate(d.echeance)}${e.iban?' par virement (IBAN '+e.iban+')':''}.\n\nMerci !\n${e.prenomNom||''}${e.tel?'\n'+e.tel:''}`}
+  return `Bonjour${nom?' '+nom:''},\n\nVoici ma facture ${d.numero} d'un montant de ${eur(totalDoc(d))}, à régler ${echeanceTxt(d)==='à réception'?'dès réception':'avant le '+fdate(d.echeance)}${e.iban?' par virement (IBAN '+e.iban+')':''}.\n\nMerci !\n${e.prenomNom||''}${e.tel?'\n'+e.tel:''}`}
 
 
 /* ============ Assistant de démarrage ============ */
@@ -785,8 +1010,8 @@ function confettis(){if(window.matchMedia&&matchMedia('(prefers-reduced-motion: 
   for(let i=0;i<36;i++){const c=document.createElement('i');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDelay=(Math.random()*.35)+'s';c.style.transform=`rotate(${Math.random()*180}deg)`;document.body.appendChild(c);setTimeout(()=>c.remove(),2200)}}
 const WZ_N=7;
 function wzCadre(n,titre,texte,corps,suivant='Continuer',passer=''){
-  return `<div class="wz-prog">${Array.from({length:WZ_N},(_,i)=>`<i class="${i<n?'on':''}"></i>`).join('')}</div>
-  <div class="wz-step">Étape ${n} sur ${WZ_N}</div><div class="wz-t">${titre}</div>${texte?`<p class="wz-p">${texte}</p>`:''}
+  return `<div class="wz-prog">${Array.from({length:WZ_N-1},(_,i)=>`<i class="${i<n-1?'on':''}"></i>`).join('')}</div>
+  <div class="wz-step">Étape ${n-1} sur ${WZ_N-1}</div><div class="wz-t">${titre}</div>${texte?`<p class="wz-p">${texte}</p>`:''}
   <form id="wz" onsubmit="App.wzSuivant(event,${n})">${corps}
   <div class="wz-foot"><div class="in">${n>1?`<button type="button" class="btn ghost" onclick="go('#/bienvenue/${n-1}')" aria-label="Étape précédente">${svg('chev','i').replace('M9 6l6 6-6 6','M15 18l-6-6 6-6')}</button>`:''}${passer?`<button type="button" class="btn ghost" onclick="App.wzPasser(${n})">${passer}</button>`:''}<button class="btn primary">${suivant}</button></div></div></form>`}
 function vBienvenue(n){n=Math.min(WZ_N,Math.max(1,+n||1));titre('','', '');const e=D.entreprise;
@@ -794,7 +1019,7 @@ function vBienvenue(n){n=Math.min(WZ_N,Math.max(1,+n||1));titre('','', '');const
     <ul class="bullets"><li><span class="em">📝</span><span><b>Des devis et factures en règle</b><br><span class="muted">Toutes les mentions obligatoires sont ajoutées pour vous.</span></span></li>
     <li><span class="em">💶</span><span><b>Votre chiffre d'affaires d'un coup d'œil</b><br><span class="muted">Ce que vous avez gagné, ce qu'on vous doit.</span></span></li>
     <li><span class="em">🐷</span><span><b>Ce qu'il faut mettre de côté</b><br><span class="muted">Le montant à prévoir pour l'URSSAF, calculé tout seul.</span></span></li></ul>
-    <p class="small muted">Préparons votre entreprise : 6 petites étapes, environ 2 minutes.</p>
+    <p class="small muted">Préparons votre entreprise : ${WZ_N-1} petites étapes, environ 2 minutes.</p>
     <div class="wz-foot"><div class="in"><button class="btn ghost" onclick="App.wzFin(false)">Plus tard</button><button class="btn primary" onclick="go('#/bienvenue/2')">C'est parti</button></div></div>`;
   if(n===2)return wzCadre(2,'Qui êtes-vous ?','Votre nom apparaîtra en haut de vos devis et factures.',
     `<label class="f">Prénom et nom<input name="prenomNom" required value="${esc(e.prenomNom)}" placeholder="Ex. : Camille Martin" autocomplete="name"></label>
@@ -807,6 +1032,8 @@ function vBienvenue(n){n=Math.min(WZ_N,Math.max(1,+n||1));titre('','', '');const
   if(n===4)return wzCadre(4,'Vos coordonnées','Elles sont obligatoires sur une facture.',
     `<label class="f">Numéro SIRET ${bulle('siret')}<input name="siret" inputmode="numeric" value="${esc(e.siret)}" placeholder="14 chiffres"></label>
      <p class="hint">Vous le trouvez sur votre attestation d'immatriculation, ou sur annuaire-entreprises.data.gouv.fr en tapant votre nom.</p>
+     <label class="f">Date de début d'activité<input type="date" name="debutActivite" value="${esc(e.debutActivite)}"></label>
+     <p class="hint">Elle est aussi sur votre attestation. Kwik s'en sert pour savoir quand tombe votre première déclaration URSSAF.</p>
      <label class="f">Adresse<input name="adresse" value="${esc(e.adresse)}" autocomplete="street-address"></label>
      <div class="grid2"><label class="f">Code postal<input name="cp" inputmode="numeric" value="${esc(e.cp)}" autocomplete="postal-code"></label><label class="f">Ville<input name="ville" value="${esc(e.ville)}"></label></div>
      <div class="grid2"><label class="f">Téléphone<input name="tel" type="tel" value="${esc(e.tel)}" autocomplete="tel"></label><label class="f">E-mail<input name="email" type="email" value="${esc(e.email)}" autocomplete="email"></label></div>`);
@@ -829,7 +1056,7 @@ function vBienvenue(n){n=Math.min(WZ_N,Math.max(1,+n||1));titre('','', '');const
      <p class="hint" style="margin-top:6px">Le modèle est une base sérieuse, mais pas un avis juridique : relisez-le et complétez les passages entre crochets.</p>`,'Terminer')}
 }
 function miniDoc(){const e=D.entreprise;return `${e.logo?`<img src="${e.logo}" alt="">`:''}<b>${esc(e.prenomNom||'Votre nom')} EI</b>${e.nomCommercial?'<br>'+esc(e.nomCommercial):''}<br><span style="color:#666">SIRET ${esc(e.siret||'…')}</span><div style="text-align:right;color:#1B2A9E;font-weight:800;font-size:16px;margin-top:-34px">DEVIS</div>`}
-function texteMediateur(){const e=D.entreprise;return e.mediateurNom?(e.mediateurNom+(e.mediateurSite?' ('+e.mediateurSite+')':'')):'[nom et site du médiateur]'}
+function texteMediateur(e=D.entreprise){return e.mediateurNom?(e.mediateurNom+(e.mediateurSite?' ('+e.mediateurSite+')':'')):'[nom et site du médiateur]'}
 function modeleCgv(type){const e=D.entreprise;const qui=`${e.prenomNom||'[Prénom Nom]'} EI${e.nomCommercial?' ('+e.nomCommercial+')':''}, ${e.adresse||'[adresse]'} ${e.cp||''} ${e.ville||''}, SIRET ${e.siret||'[SIRET]'}${e.email?', '+e.email:''}${e.tel?', '+e.tel:''}`.replace(/\s+/g,' ');
   const metier=e.metier?e.metier.toLowerCase():'';
   if(type==='service')return `1. Vendeur
@@ -871,7 +1098,7 @@ Une pièce personnalisée fait l'objet d'un devis. La commande est ferme dès si
 Les prix sont en euros. TVA non applicable, art. 293 B du CGI. Les frais d'envoi éventuels sont indiqués avant la commande et restent à la charge du client.
 
 5. Paiement
-Paiement comptant au retrait ou à l'envoi, par virement, carte, chèque ou espèces (dans la limite légale). Les créations restent la propriété du vendeur jusqu'au paiement complet. Pour les clients professionnels, tout retard entraîne des pénalités au taux de trois fois le taux d'intérêt légal et une indemnité forfaitaire de 40 € pour frais de recouvrement.
+${PHRASE_ECHEANCE}, par virement, carte, chèque ou espèces (dans la limite légale). Les créations restent la propriété du vendeur jusqu'au paiement complet. Pour les clients professionnels, tout retard entraîne des pénalités au taux de trois fois le taux d'intérêt légal et une indemnité forfaitaire de 40 € pour frais de recouvrement.
 
 6. Retrait et livraison
 Les pièces sont soigneusement emballées. Pour un client particulier, les risques sont transférés au moment où il reçoit le colis. En cas de casse à la réception, le client le signale dans les 3 jours avec des photos, pour un remplacement ou un remboursement.
@@ -966,8 +1193,15 @@ const App={
   wzMod(btn,m){document.getElementById('wzMod').value=m;document.querySelectorAll('.choice').forEach(c=>c.classList.remove('on'));btn.classList.add('on')},
   wzFin(fini){D.onboarded=true;enregistrer();if(fini){confettis();toast('🎉 Votre entreprise est prête !')}go('#/accueil')},
   modeleCgv(t){const el=$('#cgvTxt');const go_=()=>{el.value=modeleCgv(t);toast('Modèle ajouté : relisez les passages entre crochets')};if(el.value.trim())ask('Remplacer vos CGV ?','Le texte actuel sera remplacé par le modèle.','Remplacer').then(ok=>ok&&go_());else go_()},
+  majTrous(){const el=$('#trousInfo'),t=$('#cgvTxt');if(el&&t)el.innerHTML=infoTrous(t.value)},
+  trouSuivant(){const el=$('#cgvTxt');if(!el)return;const v=el.value;const re=/\[[^\]\n]{1,300}\]/g;re.lastIndex=el.selectionEnd||0;let m=re.exec(v);if(!m){re.lastIndex=0;m=re.exec(v)}
+    if(!m){toast('Plus aucun passage entre crochets 👍');return}
+    el.focus();el.setSelectionRange(m.index,m.index+m[0].length);
+    const lh=parseFloat(getComputedStyle(el).lineHeight)||20;const avant=v.slice(0,m.index);const lignes=avant.split('\n').reduce((s,l)=>s+Math.max(1,Math.ceil((l.length+1)*7/Math.max(200,el.clientWidth))),0);el.scrollTop=Math.max(0,(lignes-2)*lh);
+    toast('Écrivez pour remplacer le passage surligné')},
+  phraseEcheance(){const el=$('#cgvTxt');if(!el)return;el.value=el.value.split(PHRASE_COMPTANT).join(PHRASE_ECHEANCE);App.majTrous();toast('Phrase corrigée : pensez à enregistrer')},
   pref(k,v){PREFS[k]=v;try{localStorage.setItem('kwik_prefs',JSON.stringify(PREFS))}catch(e){}appliquerApparence();route()},
-  basculer(t){ED._type=t;const del=num(D.entreprise.delai)||30;
+  basculer(t){ED._type=t;const del=delaiJ();
     if(t==='devis'){ED.validite=ED.validite||addDays(ED.date,30)}else{ED.dateExecution=ED.dateExecution||ED.date;ED.echeance=ED.echeance||addDays(ED.date,del)}
     location.replace('#/'+t+'-edit/nouveau')},
   filtrer(cle){const el=$('#res');if(!el)return;el.innerHTML=cle==='devis'?contenuDevis():cle==='factures'?contenuFactures():contenuClients()},
@@ -976,7 +1210,7 @@ const App={
     if(c.type!=='pro')c.siren='';enregistrer();toast('Client enregistré');go('#/clients')},
   async supprimerClient(id){if(!await ask('Supprimer ce client ?','Ses devis et factures sont conservés.','Supprimer',true))return;D.clients=D.clients.filter(c=>c.id!==id);enregistrer();toast('Client supprimé');go('#/clients')},
   nouveauPour(type,cid){const t=today();ED={id:'',date:t,clientId:cid,lignes:[nouvelleLigne()],notes:'',_type:type,_id:'nouveau'};
-    if(type==='devis')ED.validite=addDays(t,30);else{ED.dateExecution=t;ED.echeance=addDays(t,num(D.entreprise.delai)||30)}go('#/'+type+'-edit/nouveau')},
+    if(type==='devis')ED.validite=addDays(t,30);else{ED.dateExecution=t;ED.echeance=addDays(t,delaiJ())}go('#/'+type+'-edit/nouveau')},
   sauverProduit(ev,id){const o=formData(ev);o.pu=r2(num(o.pu));o.fourn=o.nature==='mixte'?r2(num(o.fourn)):undefined;let p=id?parId(D.produits,id):null;if(p)Object.assign(p,o);else D.produits.push(Object.assign({id:uid()},o));enregistrer();toast('Article enregistré');go('#/catalogue')},
   async supprimerProduit(id){if(!await ask('Supprimer cet article ?','Il disparaît du catalogue, pas des devis déjà faits.','Supprimer',true))return;D.produits=D.produits.filter(p=>p.id!==id);enregistrer();go('#/catalogue')},
   sauverAchat(ev,id){const o=formData(ev);o.montant=r2(num(o.montant));let a=id?parId(D.achats,id):null;if(a)Object.assign(a,o);else D.achats.push(Object.assign({id:uid()},o));enregistrer();toast('Achat enregistré');go('#/achats/'+o.date.slice(0,4))},
@@ -999,7 +1233,7 @@ const App={
     D.produits.push({id:uid(),designation:d,unite:l.unite||'',pu:r2(num(l.pu)),nature:l.nature||'service',fourn:l.nature==='mixte'?r2(num(l.fourn)):undefined});enregistrer();$('#lignes').innerHTML=lignesHtml();App.majTotaux();toast('⭐ Ajouté à votre catalogue')},
   edDate(v){const ancien=ED.date;ED.date=v;
     if(ED._type==='devis'){if(!ED.validite||ED.validite===addDays(ancien,30)){ED.validite=addDays(v,30);const el=$('#edValid');if(el)el.value=ED.validite}}
-    else{const del=num(D.entreprise.delai)||30;if(!ED.echeance||ED.echeance===addDays(ancien,del)){ED.echeance=addDays(v,del);const el=$('#edEch');if(el)el.value=ED.echeance}if(!ED.dateExecution||ED.dateExecution===ancien)ED.dateExecution=v}},
+    else{const del=delaiJ();if(!ED.echeance||ED.echeance===addDays(ancien,del)){ED.echeance=addDays(v,del);const el=$('#edEch');if(el)el.value=ED.echeance}if(!ED.dateExecution||ED.dateExecution===ancien)ED.dateExecution=v}},
   majTotaux(){ED.lignes.forEach((l,i)=>{const el=$('#lt'+i);if(el)el.textContent=eur(num(l.qte)*num(l.pu))});const t=$('#edTotal');if(t)t.textContent=eur(totalDoc(ED))},
   pas(i,d){const l=ED.lignes[i];l.qte=Math.max(0,r2(num(l.qte)+d));$('#q'+i).value=dec(l.qte);App.majTotaux()},
   ajLigne(){ED.lignes.push(nouvelleLigne());$('#lignes').innerHTML=lignesHtml();App.majTotaux();const ins=$('#lignes').querySelectorAll('.des');ins[ins.length-1].focus()},
@@ -1012,32 +1246,75 @@ const App={
     if(!lignes.length){toast('Ajoutez au moins une ligne');return}
     if(lignes.some(l=>!String(l.designation).trim())){toast('Chaque ligne doit avoir une désignation');return}
     if(type==='facture'&&!entrepriseOk()&&!await ask('Fiche entreprise incomplète','Votre nom, SIRET ou adresse manque. Ils sont obligatoires sur une facture.','Enregistrer quand même'))return;
+    if(type==='facture'){const b=bornesDate(ED);
+      if(ED.date<b.min||(b.max&&ED.date>b.max)){
+        if(ED.numero){info('Date impossible',`Cette facture porte le numéro ${ED.numero} : sa date doit rester entre le ${fdate(b.min)} et le ${fdate(b.max)}, pour que les factures se suivent dans l'ordre.`);return}
+        const nd=[today(),b.min].sort().pop();const der=D.factures.filter(f=>f.date===b.min).map(f=>f.numero).sort().pop();
+        if(!await ask('Date de facture à changer',`Votre dernière facture (${der}) est datée du ${fdate(b.min)}. Les factures doivent se suivre dans l'ordre des dates : celle-ci ne peut pas être plus ancienne. Pour une vente passée, Kwik garde la vraie date dans « Date des travaux / livraison ».`,`Dater du ${fdate(nd)}`))return;
+        if(!ED.dateExecution)ED.dateExecution=ED.date;if(!ED.echeance||ED.echeance<=addDays(ED.date,delaiJ()))ED.echeance=addDays(nd,delaiJ());ED.date=nd}}
     const doc=JSON.parse(JSON.stringify(ED));delete doc._type;delete doc._id;delete doc._auto;
     doc.lignes=lignes.map(l=>({designation:String(l.designation).trim(),qte:num(l.qte),unite:l.unite||'',pu:r2(num(l.pu)),nature:NATURES[l.nature]?l.nature:'service',fourn:l.nature==='mixte'?Math.min(r2(num(l.pu)),r2(num(l.fourn))):undefined}));
     doc.client={nom:cl.nom,type:cl.type,siren:cl.siren,adresse:cl.adresse,cp:cl.cp,ville:cl.ville,email:cl.email};doc.maj=new Date().toISOString();
     if(!doc.id){doc.id=uid();doc.cree=doc.maj;doc.numero=prochainNumero(type,doc.date);
       if(type==='devis')doc.statut='brouillon';else{doc.statut='emise';doc.emetteur=Object.assign({},D.entreprise)}
       liste.push(doc);
-      if(type==='facture'&&doc.devisId){const dv=parId(D.devis,doc.devisId);if(dv){dv.statut='facture';dv.factureId=doc.id;dv.maj=doc.maj}}}
+      if(type==='facture'&&doc.devisId){const dv=parId(D.devis,doc.devisId);if(dv){dv.statut='facture';dv.factureId=doc.id;dv.maj=doc.maj}}
+      if(type==='facture'&&doc.remplace){const o=parId(D.factures,doc.remplace);if(o&&!o.annulee){creerAvoir(o);o.remplaceePar=doc.id}}}
     else{const i=liste.findIndex(x=>x.id===doc.id);if(type==='facture')doc.emetteur=Object.assign({},D.entreprise);liste[i]=doc}
     if(enregistrer()){ED=null;const premier=liste.length===1;toast(premier?(type==='devis'?'🎉 Votre premier devis !':'🎉 Votre première facture !'):(type==='devis'?'Devis enregistré':'Facture enregistrée'));if(premier)confettis();go('#/voir/'+type+'/'+doc.id)}},
   statutDevis(id,s){const d=parId(D.devis,id);d.statut=s;d.maj=new Date().toISOString();enregistrer();route()},
   devisVersFacture(id){const d=parId(D.devis,id);const t=today();
-    ED={id:'',date:t,dateExecution:t,echeance:addDays(t,num(D.entreprise.delai)||30),clientId:d.clientId,lignes:JSON.parse(JSON.stringify(d.lignes)),notes:d.notes||'',devisId:d.id,_type:'facture',_id:'nouveau'};
+    ED={id:'',date:t,dateExecution:t,echeance:addDays(t,delaiJ()),clientId:d.clientId,lignes:JSON.parse(JSON.stringify(d.lignes)),notes:d.notes||'',devisId:d.id,_type:'facture',_id:'nouveau'};
     if(!parId(D.clients,d.clientId))toast('Le client de ce devis a été supprimé : choisissez-en un');
     go('#/facture-edit/nouveau')},
-  dupliquer(type,id){closeSheet();const src=parId(type==='devis'?D.devis:D.factures,id);const t=today();
+  dupliquer(type,id){closeSheet();const src=parId(listeDe(type),id);const t=today();
     ED={id:'',date:t,clientId:src.clientId,lignes:JSON.parse(JSON.stringify(src.lignes)),notes:src.notes||'',_type:type,_id:'nouveau'};
-    if(type==='devis')ED.validite=addDays(t,30);else{ED.dateExecution=t;ED.echeance=addDays(t,num(D.entreprise.delai)||30)}
+    if(type==='devis')ED.validite=addDays(t,30);else{ED.dateExecution=t;ED.echeance=addDays(t,delaiJ())}
     go('#/'+type+'-edit/nouveau')},
-  sheetActions(type,id){const d=parId(type==='devis'?D.devis:D.factures,id);const isF=type==='facture';
+  sheetActions(type,id){const d=parId(listeDe(type),id);const isF=type==='facture',isA=type==='avoir';
+    const it=(fn,ic,t,rouge)=>`<button class="item" onclick="${fn}" ${rouge?'style="color:var(--bad)"':''}><span class="av" ${rouge?'style="background:var(--bad-soft);color:var(--bad)"':''}>${svg(ic)}</span><span class="grow t">${t}</span></button>`;
     openSheet(`<h3>${esc(d.numero)}</h3><div class="list">
-      <button class="item" onclick="closeSheet();App.imprimer('${type}','${id}')"><span class="av">${svg('pdf')}</span><span class="grow t">PDF / Imprimer</span></button>
-      <button class="item" onclick="closeSheet();App.partager('${type}','${id}')"><span class="av">${svg('share')}</span><span class="grow t">${isF&&enRetard(d)?'Relancer le client':'Envoyer un message'}</span></button>
-      <button class="item" onclick="App.dupliquer('${type}','${id}')"><span class="av">${svg('copy')}</span><span class="grow t">Dupliquer</span></button>
-      ${isF&&d.statut==='payee'?`<button class="item" onclick="App.annulerPaiement('${id}')"><span class="av">${svg('x')}</span><span class="grow t">Annuler l'encaissement</span></button>`:''}
-      ${!isF?`<button class="item" onclick="App.supprimerDevis('${id}')" style="color:var(--bad)"><span class="av" style="background:var(--bad-soft);color:var(--bad)">${svg('trash')}</span><span class="grow t">Supprimer le devis</span></button>`:''}
-    </div>${isF?'<p class="small muted">Une facture ne peut pas être supprimée : la loi impose une numérotation sans trou.</p>':''}`)},
+      ${it(`closeSheet();App.pdf('${type}','${id}')`,'pdf','PDF')}
+      ${it(`closeSheet();App.partager('${type}','${id}')`,'share',isF&&enRetard(d)?'Relancer le client':'Envoyer')}
+      ${it(`closeSheet();App.imprimer('${type}','${id}')`,'print','Imprimer')}
+      ${!isA?it(`App.dupliquer('${type}','${id}')`,'copy','Dupliquer'):''}
+      ${isF&&d.statut==='payee'&&!d.annulee?it(`App.annulerPaiement('${id}')`,'x',"Annuler l'encaissement"):''}
+      ${isA&&d.statut==='rembourse'?it(`App.annulerRemboursement('${id}')`,'x','Annuler le remboursement'):''}
+      ${isF&&!d.annulee?it(`App.sheetAnnuler('${id}')`,'x','Annuler cette facture (avoir)',true):''}
+      ${type==='devis'?it(`App.supprimerDevis('${id}')`,'trash','Supprimer le devis',true):''}
+    </div>${isF?'<p class="small muted">Une facture ne se supprime pas : la loi impose une numérotation sans trou. Pour l’annuler, Kwik crée un avoir.</p>':''}`)},
+  sheetCorriger(id){const f=parId(D.factures,id);
+    openSheet(`<h3>Corriger ${esc(f.numero)}</h3><p class="muted" style="margin-top:-4px">Cette facture est déjà partie chez le client : on ne la modifie plus. Voici ce que fait Kwik, comme le prévoit la loi :</p>
+      <ol class="small" style="padding-left:20px;line-height:1.5"><li>il prépare une copie à corriger, qui aura un nouveau numéro ;</li><li>quand vous l'enregistrez, il crée un <b>avoir</b> qui annule ${esc(f.numero)}.</li></ol>
+      <p class="small muted">Ensuite, envoyez la nouvelle facture au client.</p>
+      <button class="btn primary block" onclick="App.corriger('${id}')">Préparer la facture corrigée</button><div style="height:8px"></div><button class="btn ghost block" onclick="closeSheet()">Retour</button>`)},
+  corriger(id){const f=parId(D.factures,id);const t=today();closeSheet();
+    ED={id:'',date:t,dateExecution:f.dateExecution||f.date,echeance:addDays(t,delaiJ()),clientId:f.clientId,lignes:JSON.parse(JSON.stringify(f.lignes)),notes:f.notes||'',remplace:f.id,_type:'facture',_id:'nouveau'};
+    if(f.devisId)ED.devisId=f.devisId;
+    if(!parId(D.clients,f.clientId))toast('Le client de cette facture a été supprimé : choisissez-en un');
+    setTimeout(()=>go('#/facture-edit/nouveau'),250)},
+  sheetAnnuler(id){const f=parId(D.factures,id);const paye=f.statut==='payee';closeSheet();
+    setTimeout(()=>openSheet(`<h3>Annuler ${esc(f.numero)} ?</h3><p class="muted" style="margin-top:-4px">Une facture ne se supprime pas. Kwik crée un <b>avoir</b> : un document qui annule la facture, avec son propre numéro. ${paye?'Comme elle est payée, il faudra rembourser le client : l’avoir vous le rappellera.':'Le client ne vous devra plus rien.'}</p>
+      <button class="btn block" style="background:var(--bad);color:#fff" onclick="App.annulerFacture('${id}')">Créer l'avoir et annuler</button><div style="height:8px"></div><button class="btn ghost block" onclick="closeSheet()">Retour</button>
+      ${!paye?`<p class="small muted">Vous voulez seulement corriger une erreur ? Utilisez plutôt « ${f.envoyee?'Corriger':'Modifier'} ».</p>`:''}`),260)},
+  annulerFacture(id){const f=parId(D.factures,id);if(!f||f.annulee)return;const a=creerAvoir(f);if(enregistrer()){closeSheet();toast('Avoir '+a.numero+' créé');go('#/voir/avoir/'+a.id)}},
+  sheetRembourser(id){const a=parId(D.avoirs,id);
+    openSheet(`<h3>Rembourser ${eur(totalDoc(a))}</h3><p class="muted" style="margin-top:-6px">${esc(a.client.nom)} · ${esc(a.numero)}</p>
+    <label class="f">Remboursé le<input type="date" id="pDate" value="${today()}"></label>
+    <div class="f"><span style="font-size:13.5px;font-weight:600;color:var(--muted)">Moyen</span><div class="chips" style="margin-top:8px;flex-wrap:wrap" id="pModes">${['virement','espèces','chèque','carte bancaire','autre'].map((m,i)=>`<button type="button" class="chip ${i===0?'on':''}" onclick="document.querySelectorAll('#pModes .chip').forEach(c=>c.classList.remove('on'));this.classList.add('on')">${m}</button>`).join('')}</div></div>
+    <p class="small muted">Le remboursement sera retiré de votre chiffre d'affaires à cette date.</p>
+    <button class="btn hi block" onclick="App.rembourser('${id}')">${svg('check')} Confirmer le remboursement</button>`)},
+  rembourser(id){const a=parId(D.avoirs,id);const m=document.querySelector('#pModes .chip.on');a.statut='rembourse';a.paiement={date:$('#pDate').value||today(),mode:m?m.textContent:'virement'};a.maj=new Date().toISOString();enregistrer();closeSheet();toast('Remboursement noté');route()},
+  async annulerRemboursement(id){closeSheet();await new Promise(r=>setTimeout(r,260));if(!await ask('Annuler le remboursement ?','L’avoir repassera « à rembourser ».','Annuler le remboursement',true))return;const a=parId(D.avoirs,id);a.statut='a_rembourser';delete a.paiement;enregistrer();route()},
+  /* Avant le PDF ou l'envoi : prévenir s'il manque quelque chose. Renvoie true si une feuille a été ouverte. */
+  bloqueVerifs(type,id,action){const d=parId(listeDe(type),id);if(!docAVerifier(type,d))return false;const v=verifs(type,d);if(!v.length)return false;
+    openSheet(`<h3>Avant ${action==='pdf'?'de faire le PDF':"d'envoyer"}</h3>${v.map(x=>`<p style="margin:10px 0"><b>${esc(x[0])}</b><br><span class="muted">${esc(x[1])}</span></p>`).join('')}
+      <a class="btn primary block" href="#/entreprise" onclick="closeSheet()">Compléter maintenant</a><div style="height:8px"></div>
+      <button class="btn ghost block" onclick="closeSheet();App.${action==='pdf'?'pdf':'partager'}('${type}','${id}',true)">${action==='pdf'?'Faire le PDF quand même':'Envoyer quand même'}</button>`);return true},
+  async pdf(type,id,force){const d=parId(listeDe(type),id);if(!force&&App.bloqueVerifs(type,id,'pdf'))return;
+    let f;try{f=await fichierPdf(type,d)}catch(e){toast('PDF impossible : essayez « Imprimer »');return}
+    if(navigator.canShare&&navigator.canShare({files:[f]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){try{await navigator.share({files:[f],title:f.name});marquerEnvoye(type,d,true);route()}catch(e){if(!(e&&e.name==='AbortError')){telechargerFichier(f);marquerEnvoye(type,d,true);route()}}return}
+    telechargerFichier(f);marquerEnvoye(type,d,true);toast('PDF enregistré : '+f.name);route()},
   async supprimerDevis(id){closeSheet();await new Promise(r=>setTimeout(r,260));if(!await ask('Supprimer ce devis ?','','Supprimer',true))return;D.devis=D.devis.filter(d=>d.id!==id);enregistrer();toast('Devis supprimé');go('#/devis')},
   sheetPayer(id){const f=parId(D.factures,id);
     openSheet(`<h3>Encaisser ${eur(totalDoc(f))}</h3><p class="muted" style="margin-top:-6px">${esc(f.client.nom)} · ${esc(f.numero)}</p>
@@ -1046,12 +1323,20 @@ const App={
     <button class="btn hi block" onclick="App.payer('${id}')">${svg('check')} Confirmer l'encaissement</button>`)},
   payer(id){const f=parId(D.factures,id);const date=$('#pDate').value||today();const m=document.querySelector('#pModes .chip.on');f.statut='payee';f.paiement={date,mode:m?m.textContent:'virement'};f.maj=new Date().toISOString();enregistrer();closeSheet();toast('💶 '+eur(totalDoc(f))+' encaissés !');confettis();route()},
   async annulerPaiement(id){closeSheet();await new Promise(r=>setTimeout(r,260));if(!await ask("Annuler l'encaissement ?",'La facture repassera « à encaisser » et sortira du livre des recettes.','Annuler l’encaissement',true))return;const f=parId(D.factures,id);f.statut='emise';delete f.paiement;enregistrer();route()},
-  async partager(type,id){const d=parId(type==='devis'?D.devis:D.factures,id);const txt=messageDoc(type,d);
-    if(type==='devis'&&d.statut==='brouillon'){d.statut='envoye';d.maj=new Date().toISOString();enregistrer()}
-    if(navigator.share){try{await navigator.share({text:txt});route();return}catch(e){if(e&&e.name==='AbortError'){route();return}}}
-    openSheet(`<h3>Message à envoyer</h3><p class="small muted" style="margin-top:-6px">Copiez-le, puis collez-le dans un SMS, WhatsApp ou un mail, avec le PDF.</p><textarea class="field" id="msgTxt" style="min-height:200px">${esc(txt)}</textarea><div style="height:10px"></div><button class="btn primary block" onclick="App.copier()">${svg('copy')} Copier le message</button>`)},
-  async copier(){const t=$('#msgTxt');try{await navigator.clipboard.writeText(t.value);toast('Message copié')}catch(e){t.select();toast('Sélectionné : faites Copier')}},
-  imprimer(type,id){const d=parId(type==='devis'?D.devis:D.factures,id);$('#print').innerHTML=docHtml(type,d);
+  async partager(type,id,force){const d=parId(listeDe(type),id);if(!force&&App.bloqueVerifs(type,id,'envoyer'))return;
+    const txt=messageDoc(type,d);let f=null;try{f=await fichierPdf(type,d)}catch(e){}
+    if(f&&navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],text:txt,title:f.name});marquerEnvoye(type,d);route();return}catch(e){if(e&&e.name==='AbortError')return}}
+    else if(!f&&navigator.share){try{await navigator.share({text:txt});marquerEnvoye(type,d);route();return}catch(e){if(e&&e.name==='AbortError')return}}
+    App._envoi={type,id,f};const sujet=nomFichier(type,d);
+    openSheet(`<h3>Envoyer ${esc(d.numero)}</h3><p class="small muted" style="margin-top:-6px">1. Enregistrez le PDF. 2. Copiez le message. 3. Collez-le dans un mail, un SMS ou WhatsApp, avec le PDF en pièce jointe.</p>
+      ${f?`<button class="btn primary block" onclick="App.telechargerEnvoi()">${svg('pdf')} Enregistrer le PDF</button><div style="height:10px"></div>`:''}
+      <textarea class="field" id="msgTxt" style="min-height:170px">${esc(txt)}</textarea><div style="height:10px"></div>
+      <button class="btn block" onclick="App.copier()">${svg('copy')} Copier le message</button>
+      ${d.client&&d.client.email?`<div style="height:10px"></div><a class="btn ghost block" href="mailto:${encodeURIComponent(d.client.email)}?subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(txt)}" onclick="App.envoiFait()">Ouvrir ma messagerie</a>`:''}`)},
+  telechargerEnvoi(){const x=App._envoi;if(!x||!x.f)return;telechargerFichier(x.f);App.envoiFait();toast('PDF enregistré')},
+  envoiFait(){const x=App._envoi;if(!x)return;const d=parId(listeDe(x.type),x.id);if(d)marquerEnvoye(x.type,d)},
+  async copier(){const t=$('#msgTxt');App.envoiFait();try{await navigator.clipboard.writeText(t.value);toast('Message copié')}catch(e){t.select();toast('Sélectionné : faites Copier')}},
+  imprimer(type,id){const d=parId(listeDe(type),id);avantSortie(type,d);marquerEnvoye(type,d,true);$('#print').innerHTML=docHtml(type,d);
     const ancien=document.title;const cl=(d.client&&d.client.nom||'').replace(/[^\w\- ]+/g,'').trim();document.title=(type==='devis'?'Devis ':'Facture ')+d.numero+(cl?' '+cl:'');
     const fin=()=>{document.title=ancien;window.removeEventListener('afterprint',fin)};window.addEventListener('afterprint',fin);
     setTimeout(()=>{try{window.print()}catch(e){toast('Impression impossible ici')}setTimeout(fin,4000)},50)},
@@ -1065,7 +1350,7 @@ const App={
       enregistrer();if(!wz)$('#logoPrev').innerHTML=`<img src="${D.entreprise.logo}" style="max-height:60px;max-width:160px"> <button type="button" class="btn sm ghost" onclick="App.retirerLogo()">Retirer</button>`;toast('Logo ajouté');if(wz){const a=$('#wzApercu');if(a)a.innerHTML=miniDoc()}};img.src=r.result};r.readAsDataURL(f)},
   retirerLogo(){D.entreprise.logo='';enregistrer();$('#logoPrev').innerHTML=''},
   csvRecettes(y){const rows=[['Date encaissement','N° facture','Client','Nature','Montant ventes','Montant services','Total','Moyen de paiement']];
-    recettes(y).forEach(f=>{const p=partsDoc(f);rows.push([fdate(f.paiement.date),f.numero,f.client.nom,natureOperation(f),p.vente,p.service,totalDoc(f),f.paiement.mode])});telecharger('livre-des-recettes-'+y+'.csv',csv(rows),'text/csv')},
+    recettes(y).forEach(r=>{const p=partsDoc(r.d);rows.push([fdate(r.date),r.d.numero,r.d.client.nom,r.type==='avoir'?'Remboursement (avoir sur '+r.d.factureNumero+')':natureOperation(r.d),r.signe*p.vente,r.signe*p.service,r.signe*totalDoc(r.d),r.mode])});telecharger('livre-des-recettes-'+y+'.csv',csv(rows),'text/csv')},
   csvAchats(y){const rows=[['Date','Fournisseur','Objet','Montant','Moyen de paiement','N° pièce']];
     D.achats.filter(a=>a.date.startsWith(y)).sort((a,b)=>a.date.localeCompare(b.date)).forEach(a=>rows.push([fdate(a.date),a.fournisseur,a.objet,num(a.montant),a.mode,a.piece]));telecharger('registre-des-achats-'+y+'.csv',csv(rows),'text/csv')},
   exporter(){D.derniereSauvegarde=new Date().toISOString();enregistrer();telecharger('kwik-sauvegarde-'+today()+'.json',JSON.stringify(Object.assign({app:'Kwik',version:1},D),null,1),'application/json');route()},
