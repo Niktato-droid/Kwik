@@ -141,6 +141,11 @@ label.f input:focus,label.f select:focus,label.f textarea:focus,.field:focus{bor
 .sw.on{border-color:var(--ink)}
 .sw i{display:flex;width:44px;height:28px;border-radius:8px;overflow:hidden;flex:none}
 .sw i b{flex:1}
+/* Bulles d'aide */
+.q{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;border:0;background:var(--brand-soft);color:var(--brand);font:700 13px/1 var(--font-b);cursor:pointer;vertical-align:middle;margin-left:6px;padding:0;flex:none}
+.q:active{transform:scale(.92)}
+.help p{margin:0 0 12px;font-size:16.5px}
+.help .src{font-size:14px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px}
 /* Assistant */
 body.wizard .tabs,body.wizard .top,body.wizard #actionbar{display:none}
 body.wizard main{padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(120px + env(safe-area-inset-bottom))}
@@ -370,7 +375,7 @@ const svg=(k,cls='i')=>`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="tru
 const KEY='kwik_v1';
 const PARAMS_DEFAUT={tauxVente:12.3,tauxService:21.2,plafondVente:203100,plafondService:83600,tvaVente:85000,tvaService:37500};
 function vide(){return{
-  entreprise:{prenomNom:'',nomCommercial:'',siret:'',adresse:'',cp:'',ville:'',email:'',tel:'',activite:'service',logo:'',iban:'',bic:'',delai:30,assurance:'',mentionLibre:'',metier:'',cgv:'',cgvDevis:true,cgvFacture:true},
+  entreprise:{prenomNom:'',nomCommercial:'',siret:'',adresse:'',cp:'',ville:'',email:'',tel:'',activite:'service',logo:'',iban:'',bic:'',delai:30,assurance:'',mentionLibre:'',metier:'',mediateurNom:'',mediateurSite:'',cgv:'',cgvDevis:true,cgvFacture:true},
   clients:[],produits:[],devis:[],factures:[],achats:[],compteurs:{},params:Object.assign({},PARAMS_DEFAUT),derniereSauvegarde:''}}
 function fusion(d){const v=vide();const out=Object.assign(v,d);out.entreprise=Object.assign(vide().entreprise,d.entreprise||{});out.params=Object.assign({},PARAMS_DEFAUT,d.params||{});return out}
 function charger(){try{const s=localStorage.getItem(KEY);if(s)return fusion(JSON.parse(s))}catch(e){}return vide()}
@@ -408,7 +413,7 @@ function sheetCreer(){openSheet(`<h3>Créer</h3><div class="list">
   </div>`)}
 $('#fab').onclick=()=>{ED=null;if(location.hash==='#/devis-edit/nouveau')route();else go('#/devis-edit/nouveau')};
 function sheetMenu(){const it=(h,ic,t,s)=>`<a class="item" href="${h}" onclick="closeSheet()"><span class="av">${svg(ic)}</span><span class="grow"><span class="t" style="display:block">${t}</span><span class="s" style="display:block">${s}</span></span>${svg('chev','i chev')}</a>`;
-  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos prix enregistrés')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/apparence','edit','Apparence','Couleurs, taille du texte, mode sombre')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.4 · vos données restent sur ce téléphone</p>`)}
+  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos prix enregistrés')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/apparence','edit','Apparence','Couleurs, taille du texte, mode sombre')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.5 · vos données restent sur ce téléphone</p>`)}
 
 /* ============ Routeur ============ */
 let ED=null,RETOUR_CLIENT=null,AFTER=null;
@@ -451,7 +456,7 @@ function vAccueil(){
     <div class="months" aria-hidden="true">${parMois.map((v,i)=>`<div class="${i===m-1?'on':''}"><i style="height:${Math.max(4,Math.round(v/maxM*46))}px"></i><span>${'JFMAMJJASOND'[i]}</span></div>`).join('')}</div>
     <div class="split" style="margin-top:12px"><div class="mark"><b>${eur(totAEnc)}</b><span>À encaisser</span></div><div><b>${eur(mois.total)}</b><span>En ${MOIS[m-1]}</span></div></div></div>`;
   const trim=encaisse(P[2].de,P[2].a);
-  if(an.total>0)h+=`<div class="card aside"><span class="em">🐷</span><span style="flex:1;min-width:0"><span class="small muted" style="display:block">À mettre de côté pour l'URSSAF (ce trimestre)</span><b class="big">${eur(trim.cotis)}</b><span class="small muted">Environ ${dec(D.params.tauxVente)} % de vos ventes et ${dec(D.params.tauxService)} % de vos services encaissés.</span></span></div>`;
+  if(an.total>0)h+=`<div class="card aside"><span class="em">🐷</span><span style="flex:1;min-width:0"><span class="small muted" style="display:flex;align-items:center">À mettre de côté pour l'URSSAF (ce trimestre)${bulle('urssaf')}</span><b class="big">${eur(trim.cotis)}</b><span class="small muted">Environ ${dec(D.params.tauxVente)} % de vos ventes et ${dec(D.params.tauxService)} % de vos services encaissés.</span></span></div>`;
   h+=`<div class="quick"><a href="#/devis-edit/nouveau"><span class="ic">${svg('devis')}</span>Devis</a><a href="#/facture-edit/nouveau"><span class="ic">${svg('facture')}</span>Facture</a><a href="#/client-edit/nouveau"><span class="ic">${svg('client')}</span>Client</a><a href="#/achat-edit/nouveau"><span class="ic">${svg('achat')}</span>Achat</a></div>`;
   // À faire
   const todos=[];
@@ -465,7 +470,7 @@ function vAccueil(){
   const recents=[...D.devis.map(d=>['devis',d]),...D.factures.map(f=>['facture',f])].sort((a,b)=>(b[1].maj||b[1].cree||'').localeCompare(a[1].maj||a[1].cree||'')).slice(0,4);
   if(recents.length)h+=`<h2>Récemment</h2><div class="list">${recents.map(([ty,d])=>ligneDoc(ty,d,true)).join('')}</div>`;
   // URSSAF
-  h+=`<details class="card"><summary>Pour ma déclaration URSSAF</summary><div class="scroll"><table class="t"><thead><tr><th>Période</th><th class="n">Ventes</th><th class="n">Services</th><th class="n">Cotisations*</th></tr></thead><tbody>`+
+  h+=`<details class="card"><summary>Pour ma déclaration URSSAF ${bulle('urssaf')}</summary><div class="scroll"><table class="t"><thead><tr><th>Période</th><th class="n">Ventes</th><th class="n">Services</th><th class="n">Cotisations*</th></tr></thead><tbody>`+
     P.map(p=>{const e=encaisse(p.de,p.a);return `<tr><td>${p.lib}</td><td class="n">${eur(e.vente)}</td><td class="n">${eur(e.service)}</td><td class="n">${eur(e.cotis)}</td></tr>`}).join('')+
     `</tbody></table></div><p class="small muted">* Estimation sur les sommes encaissées, avec ${dec(D.params.tauxVente)} % pour les ventes et ${dec(D.params.tauxService)} % pour les services. Les deux se déclarent sur des lignes séparées. Hors versement libératoire et contribution à la formation.</p></details>`;
   h+=`<details class="card"><summary>Mes plafonds ${y}</summary><div style="margin-top:12px">`+
@@ -564,7 +569,8 @@ function vEditDoc(type,id){
     ${isF?`<label class="f" style="margin:0">À payer au plus tard le<input type="date" id="edEch" value="${ED.echeance||''}" onchange="ED.echeance=this.value"></label>`:''}
   </div></details>
   <details class="card" ${ED.notes?'open':''}><summary>Note pour le client</summary><label class="f" style="margin:12px 0 0"><textarea oninput="ED.notes=this.value" placeholder="Ex. : délai d'intervention, conditions particulières">${esc(ED.notes)}</textarea></label></details>
-  <p class="small muted">TVA non applicable (franchise en base) : les montants sont nets.</p>`;
+  <p class="small muted" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">TVA non applicable (franchise en base) : les montants sont nets.${bulle('tva')}</p>
+  <p class="small muted" style="display:flex;align-items:center;gap:4px">Vente ou prestation, que choisir pour chaque ligne ?${bulle('nature')}</p>`;
   AFTER=()=>{actionbar(`<div class="tot"><span class="small muted">Total</span><b id="edTotal">${eur(totalDoc(ED))}</b></div><button class="btn primary" onclick="App.sauverDoc()">${svg('check')} Enregistrer</button>`);
     if(!ED.id&&!ED.clientId&&D.clients.length&&!ED._auto){ED._auto=true;App.sheetClients()}};
   return h}
@@ -663,7 +669,7 @@ function vEntreprise(){titre('Mon entreprise','#/accueil','');const e=D.entrepri
   <label class="f">Prénom et nom<input name="prenomNom" required value="${esc(e.prenomNom)}" placeholder="Ex. : Camille Martin"></label>
   <p class="hint">La mention « EI » (entrepreneur individuel) est ajoutée toute seule sur vos documents.</p>
   <label class="f">Nom commercial (facultatif)<input name="nomCommercial" value="${esc(e.nomCommercial)}"></label>
-  <label class="f">SIRET<input name="siret" inputmode="numeric" required value="${esc(e.siret)}" placeholder="14 chiffres"></label>
+  <label class="f">SIRET ${bulle('siret')}<input name="siret" inputmode="numeric" required value="${esc(e.siret)}" placeholder="14 chiffres"></label>
   <label class="f">Adresse<input name="adresse" required value="${esc(e.adresse)}"></label>
   <div class="grid2"><label class="f">Code postal<input name="cp" inputmode="numeric" value="${esc(e.cp)}"></label><label class="f">Ville<input name="ville" value="${esc(e.ville)}"></label></div>
   <div class="grid2"><label class="f">Téléphone<input name="tel" type="tel" value="${esc(e.tel)}"></label><label class="f">E-mail<input name="email" type="email" value="${esc(e.email)}"></label></div>
@@ -681,10 +687,11 @@ function vEntreprise(){titre('Mon entreprise','#/accueil','');const e=D.entrepri
   <label class="f">Assurance professionnelle<textarea name="assurance" placeholder="Obligatoire pour les artisans du bâtiment (décennale) : assureur, n° de contrat, zone couverte">${esc(e.assurance)}</textarea></label>
   <label class="f" style="margin:0">Autre mention en bas de page<textarea name="mentionLibre" placeholder="Ex. : Dispensé d'immatriculation au RCS et au RM">${esc(e.mentionLibre)}</textarea></label>
   </div>
-  <h2>Conditions générales de vente</h2><div class="card">
+  <h2>Conditions générales de vente ${bulle('cgv')}</h2><div class="card">
   <p class="hint" style="margin:0 0 12px">Les CGV expliquent vos règles (paiement, livraison, retours, garanties). Elles s'impriment en page 2 de vos documents.</p>
   <div class="btns" style="margin-top:0"><button type="button" class="btn sm ghost" onclick="App.modeleCgv('vente')">Modèle vente d'objets</button><button type="button" class="btn sm ghost" onclick="App.modeleCgv('service')">Modèle prestations</button></div>
   <label class="f"><textarea name="cgv" id="cgvTxt" style="min-height:180px" placeholder="Choisissez un modèle ci-dessus, puis adaptez-le.">${esc(e.cgv)}</textarea></label>
+  <div class="grid2"><label class="f">Médiateur ${bulle('mediateur')}<input name="mediateurNom" value="${esc(e.mediateurNom)}" placeholder="Nom du médiateur"></label><label class="f">Son site<input name="mediateurSite" value="${esc(e.mediateurSite)}" placeholder="www…"></label></div>
   <label class="check"><input type="checkbox" name="cgvDevis" ${e.cgvDevis?'checked':''}> Joindre aux devis</label>
   <label class="check" style="padding-top:0"><input type="checkbox" name="cgvFacture" ${e.cgvFacture?'checked':''}> Joindre aux factures</label>
   </div>
@@ -759,7 +766,7 @@ function vBienvenue(n){n=Math.min(WZ_N,Math.max(1,+n||1));titre('','', '');const
      ${[['vente','🏺','Je vends des objets','Que je fabrique ou que j\'achète pour revendre'],['service','🔧','Je fais des prestations','Travaux, réparations, cours, services…'],['mixte','✨','Les deux','Par exemple : je vends mes poteries et je donne des ateliers']].map(([k,em,t,st])=>`<button type="button" class="choice ${(e.activite||'vente')===k?'on':''}" onclick="document.getElementById('wzAct').value='${k}';document.querySelectorAll('.choice').forEach(c=>c.classList.remove('on'));this.classList.add('on')"><span class="em">${em}</span><span><b>${t}</b><span class="s">${st}</span></span></button>`).join('')}
      <label class="f" style="margin-top:8px">Votre métier<input name="metier" value="${esc(e.metier)}" placeholder="Ex. : potière, plombier, coiffeuse"></label>`);
   if(n===4)return wzCadre(4,'Vos coordonnées','Elles sont obligatoires sur une facture.',
-    `<label class="f">Numéro SIRET<input name="siret" inputmode="numeric" value="${esc(e.siret)}" placeholder="14 chiffres"></label>
+    `<label class="f">Numéro SIRET ${bulle('siret')}<input name="siret" inputmode="numeric" value="${esc(e.siret)}" placeholder="14 chiffres"></label>
      <p class="hint">Vous le trouvez sur votre attestation d'immatriculation, ou sur annuaire-entreprises.data.gouv.fr en tapant votre nom.</p>
      <label class="f">Adresse<input name="adresse" value="${esc(e.adresse)}" autocomplete="street-address"></label>
      <div class="grid2"><label class="f">Code postal<input name="cp" inputmode="numeric" value="${esc(e.cp)}" autocomplete="postal-code"></label><label class="f">Ville<input name="ville" value="${esc(e.ville)}"></label></div>
@@ -772,15 +779,18 @@ function vBienvenue(n){n=Math.min(WZ_N,Math.max(1,+n||1));titre('','', '');const
      <label class="f">Votre IBAN (facultatif)<input name="iban" value="${esc(e.iban)}" placeholder="FR76 …"></label>
      <p class="hint">Pour que vos clients puissent vous payer par virement. Il est sur votre RIB.</p>`);
   if(n===7){const m=e.cgv?'':(e.activite==='service'?'service':'vente');
-    return wzCadre(7,'Vos conditions de vente','Les CGV expliquent vos règles : paiement, livraison, retours, garanties. Kwik vous propose un modèle à adapter.',
+    return wzCadre(7,'Vos conditions de vente '+bulle('cgv'),'Les CGV expliquent vos règles : paiement, livraison, retours, garanties. Kwik vous propose un modèle à adapter.',
     `<input type="hidden" name="modele" id="wzMod" value="${e.cgv?'garder':m}">
      ${e.cgv?`<button type="button" class="choice on" onclick="App.wzMod(this,'garder')"><span class="em">✅</span><span><b>Garder mes CGV actuelles</b><span class="s">Vous pourrez les modifier dans Mon entreprise</span></span></button>`:''}
      <button type="button" class="choice ${m==='vente'&&!e.cgv?'on':''}" onclick="App.wzMod(this,'vente')"><span class="em">🏺</span><span><b>Vente d'objets faits main</b><span class="s">Poterie, bijoux, créations… avec commandes sur mesure</span></span></button>
      <button type="button" class="choice ${m==='service'&&!e.cgv?'on':''}" onclick="App.wzMod(this,'service')"><span class="em">🔧</span><span><b>Prestations et travaux</b><span class="s">Interventions, réparations, cours…</span></span></button>
      <button type="button" class="choice" onclick="App.wzMod(this,'aucun')"><span class="em">⏭️</span><span><b>Pas maintenant</b><span class="s">Vous pourrez en ajouter plus tard</span></span></button>
+     <div class="card" style="margin-top:6px;box-shadow:none;border:1px solid var(--line)"><b>Votre médiateur ${bulle('mediateur')}</b><p class="hint" style="margin:6px 0 10px">Obligatoire si vous vendez à des particuliers. Vous pourrez le compléter plus tard.</p>
+     <label class="f">Nom<input name="mediateurNom" value="${esc(e.mediateurNom)}" placeholder="Nom du médiateur"></label><label class="f" style="margin:0">Site<input name="mediateurSite" value="${esc(e.mediateurSite)}" placeholder="www…"></label></div>
      <p class="hint" style="margin-top:6px">Le modèle est une base sérieuse, mais pas un avis juridique : relisez-le et complétez les passages entre crochets.</p>`,'Terminer')}
 }
 function miniDoc(){const e=D.entreprise;return `${e.logo?`<img src="${e.logo}" alt="">`:''}<b>${esc(e.prenomNom||'Votre nom')} EI</b>${e.nomCommercial?'<br>'+esc(e.nomCommercial):''}<br><span style="color:#666">SIRET ${esc(e.siret||'…')}</span><div style="text-align:right;color:#1B2A9E;font-weight:800;font-size:16px;margin-top:-34px">DEVIS</div>`}
+function texteMediateur(){const e=D.entreprise;return e.mediateurNom?(e.mediateurNom+(e.mediateurSite?' ('+e.mediateurSite+')':'')):'[nom et site du médiateur]'}
 function modeleCgv(type){const e=D.entreprise;const qui=`${e.prenomNom||'[Prénom Nom]'} EI${e.nomCommercial?' ('+e.nomCommercial+')':''}, ${e.adresse||'[adresse]'} ${e.cp||''} ${e.ville||''}, SIRET ${e.siret||'[SIRET]'}${e.email?', '+e.email:''}${e.tel?', '+e.tel:''}`.replace(/\s+/g,' ');
   const metier=e.metier?e.metier.toLowerCase():'';
   if(type==='service')return `1. Vendeur
@@ -808,7 +818,7 @@ Le vendeur s'engage à réaliser les prestations avec soin et selon les règles 
 Les coordonnées du client servent uniquement à la gestion des devis, factures et du suivi. Elles ne sont jamais revendues. Le client peut demander à les consulter ou les supprimer.
 
 9. Médiation et litiges
-En cas de litige, le client particulier peut recourir gratuitement au médiateur de la consommation : [nom et site du médiateur]. Le droit français s'applique.`;
+En cas de litige, le client particulier peut recourir gratuitement au médiateur de la consommation : ${texteMediateur()}. Le droit français s'applique.`;
   return `1. Vendeur
 Les présentes conditions générales de vente (CGV) s'appliquent aux ventes de créations${metier?' ('+metier+')':''} réalisées par ${qui}, sur un marché, en atelier, à distance ou sur commande.
 
@@ -840,7 +850,41 @@ Les modèles, photos et motifs restent la propriété du vendeur et ne peuvent �
 Les coordonnées du client servent uniquement à la commande et à la facturation. Elles ne sont jamais revendues. Le client peut demander à les consulter ou les supprimer.
 
 11. Médiation et litiges
-En cas de litige, le client particulier peut recourir gratuitement au médiateur de la consommation : [nom et site du médiateur]. Le droit français s'applique.`}
+En cas de litige, le client particulier peut recourir gratuitement au médiateur de la consommation : ${texteMediateur()}. Le droit français s'applique.`}
+
+
+/* ============ Bulles d'aide ============ */
+const AIDE={
+  mediateur:{t:'Le médiateur de la consommation',p:[
+    "C'est un arbitre neutre et gratuit pour vos clients particuliers. Si un client n'est pas content (pièce cassée, remboursement refusé) et que vous n'arrivez pas à vous entendre, il peut s'adresser à lui. Le médiateur écoute les deux côtés et propose une solution à l'amiable, sans tribunal.",
+    "C'est obligatoire dès que vous vendez à des particuliers, même sur un marché. Vous devez indiquer son nom et son site dans vos CGV.",
+    "Comment faire : choisissez un médiateur dans la liste officielle, inscrivez-vous chez lui (c'est vous qui payez, en général quelques dizaines d'euros par an pour une petite entreprise, comparez les prix), puis notez son nom et son site ici."],
+    src:['Liste officielle des médiateurs (ministère de l\'Économie)','https://www.economie.gouv.fr/mediation-conso']},
+  cgv:{t:'Les conditions générales de vente (CGV)',p:[
+    "Ce sont vos règles du jeu : comment on vous paie, les délais, la livraison, les retours, les garanties.",
+    "Elles vous protègent en cas de désaccord avec un client. Elles sont obligatoires si un client professionnel les demande, et fortement conseillées avec les particuliers.",
+    "Kwik les imprime en page 2 de vos devis. En signant le devis, le client les accepte."],
+    src:['Les CGV expliquées (service-public.fr)','https://entreprendre.service-public.gouv.fr/']},
+  siret:{t:'Le numéro SIRET',p:[
+    "C'est le numéro d'identité de votre entreprise : 14 chiffres. Il est obligatoire sur vos devis et factures.",
+    "Vous le trouvez sur votre attestation d'immatriculation, ou en tapant votre nom sur le site Annuaire des entreprises."],
+    src:['Annuaire des entreprises','https://annuaire-entreprises.data.gouv.fr/']},
+  tva:{t:'« TVA non applicable, art. 293 B du CGI »',p:[
+    "En micro-entreprise, vous êtes en général en « franchise de TVA » : vous ne facturez pas de TVA, et vous ne la récupérez pas sur vos achats.",
+    "Cette phrase est obligatoire sur vos devis et factures pour l'expliquer à vos clients. Kwik l'ajoute toute seule.",
+    "Si votre chiffre d'affaires dépasse le seuil de franchise, la TVA devient due : Kwik vous prévient sur l'accueil."],
+    src:['La franchise de TVA (service-public.fr)','https://entreprendre.service-public.gouv.fr/']},
+  urssaf:{t:'Ce qu\'il faut mettre de côté',p:[
+    "En micro-entreprise, vous payez vos cotisations sociales en pourcentage de ce que vous encaissez : environ 12,3 % pour les ventes d'objets et 21,2 % pour les prestations de services.",
+    "Vous déclarez chaque mois ou chaque trimestre sur le site de l'URSSAF ce que vous avez encaissé. Kwik vous donne les montants dans « Pour ma déclaration URSSAF ».",
+    "Conseil : mettez cette somme de côté au fur et à mesure, pour ne pas être surpris."],
+    src:['Déclarer sur autoentrepreneur.urssaf.fr','https://www.autoentrepreneur.urssaf.fr/']},
+  nature:{t:'Vente ou prestation ?',p:[
+    "Vente : vous vendez un objet (une poterie, un bijou, un produit acheté pour être revendu).",
+    "Prestation de services : vous vendez votre temps ou un savoir-faire (un atelier, un cours, une réparation, des travaux).",
+    "Les cotisations ne sont pas les mêmes, c'est pour ça que Kwik vous demande de choisir pour chaque ligne."]}
+};
+const bulle=k=>`<button type="button" class="q" aria-label="Aide : ${esc(AIDE[k].t)}" onclick="event.preventDefault();event.stopPropagation();App.aide('${k}')">?</button>`;
 
 /* ============ Apparence ============ */
 const PALETTES={
@@ -869,8 +913,9 @@ function vApparence(){titre('Apparence','#/accueil','');
   <div class="hero" style="margin-top:18px"><div class="l">Aperçu</div><div class="v">1 250,00 €</div><div class="split"><div class="mark"><b>480,00 €</b><span>À encaisser</span></div><div><b>12 400,00 €</b><span>Encaissé</span></div></div></div>`}
 
 const App={
+  aide(k){const a=AIDE[k];openSheet(`<div class="help"><h3>${esc(a.t)}</h3>${a.p.map(x=>`<p>${esc(x)}</p>`).join('')}${a.src?`<p class="src">Pour en savoir plus : <a href="${a.src[1]}" target="_blank" rel="noopener">${esc(a.src[0])}</a></p>`:''}<button class="btn primary block" onclick="closeSheet()">J'ai compris</button></div>`)},
   wzSuivant(ev,n){const o=formData(ev);
-    if(n===7){if(o.modele==='vente'||o.modele==='service'){D.entreprise.cgv=modeleCgv(o.modele);D.entreprise.cgvDevis=true;D.entreprise.cgvFacture=true}enregistrer();return App.wzFin(true)}
+    if(n===7){D.entreprise.mediateurNom=o.mediateurNom||'';D.entreprise.mediateurSite=o.mediateurSite||'';if(o.modele==='vente'||o.modele==='service'){D.entreprise.cgv=modeleCgv(o.modele);D.entreprise.cgvDevis=true;D.entreprise.cgvFacture=true}enregistrer();return App.wzFin(true)}
     if(n===6)o.delai=+o.delai;
     if(n===4&&o.siret&&o.siret.replace(/\s/g,'').length!==14){toast('Le SIRET compte 14 chiffres');return}
     Object.assign(D.entreprise,o);enregistrer();go('#/bienvenue/'+(n+1))},
@@ -960,7 +1005,7 @@ const App={
     const fin=()=>{document.title=ancien;window.removeEventListener('afterprint',fin)};window.addEventListener('afterprint',fin);
     setTimeout(()=>{try{window.print()}catch(e){toast('Impression impossible ici')}setTimeout(fin,4000)},50)},
   sauverEntreprise(ev){const o=formData(ev);['tauxVente','tauxService','plafondVente','plafondService','tvaVente','tvaService'].forEach(k=>{D.params[k]=num(o[k])||PARAMS_DEFAUT[k];delete o[k]});o.delai=Math.max(0,Math.round(num(o.delai)));o.cgvDevis=!!o.cgvDevis;o.cgvFacture=!!o.cgvFacture;
-    Object.assign(D.entreprise,o);enregistrer();toast('Fiche enregistrée');go('#/accueil')},
+    Object.assign(D.entreprise,o);if(D.entreprise.mediateurNom&&D.entreprise.cgv)D.entreprise.cgv=D.entreprise.cgv.replace('[nom et site du médiateur]',texteMediateur());enregistrer();toast('Fiche enregistrée');go('#/accueil')},
   paramsDefaut(){D.params=Object.assign({},PARAMS_DEFAUT);enregistrer();route();toast('Valeurs 2026 remises')},
   logo(input,wz){const f=input.files&&input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{
       const max=400;const k=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
