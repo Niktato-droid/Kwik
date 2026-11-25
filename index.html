@@ -457,6 +457,9 @@ function vAccueil(){
     <div class="split" style="margin-top:12px"><div class="mark"><b>${eur(totAEnc)}</b><span>À encaisser</span></div><div><b>${eur(mois.total)}</b><span>En ${MOIS[m-1]}</span></div></div></div>`;
   const trim=encaisse(P[2].de,P[2].a);
   if(an.total>0)h+=`<div class="card aside"><span class="em">🐷</span><span style="flex:1;min-width:0"><span class="small muted" style="display:flex;align-items:center">À mettre de côté pour l'URSSAF (ce trimestre)${bulle('urssaf')}</span><b class="big">${eur(trim.cotis)}</b><span class="small muted">Environ ${dec(D.params.tauxVente)} % de vos ventes et ${dec(D.params.tauxService)} % de vos services encaissés.</span></span></div>`;
+  h+=`<details class="card" open><summary>Mes chiffres pour l'URSSAF ${bulle('urssaf')}</summary><div class="scroll"><table class="t"><thead><tr><th>Période</th><th class="n">Ventes</th><th class="n">Services</th><th class="n">Cotisations*</th></tr></thead><tbody>`+
+    P.map(p=>{const e=encaisse(p.de,p.a);return `<tr><td>${p.lib}</td><td class="n">${eur(e.vente)}</td><td class="n">${eur(e.service)}</td><td class="n">${eur(e.cotis)}</td></tr>`}).join('')+
+    `</tbody></table></div><p class="small muted">* Estimation sur les sommes encaissées, avec ${dec(D.params.tauxVente)} % pour les ventes et ${dec(D.params.tauxService)} % pour les services. Les deux se déclarent sur des lignes séparées. Hors versement libératoire et contribution à la formation.</p></details>`;
   h+=`<div class="quick"><a href="#/devis-edit/nouveau"><span class="ic">${svg('devis')}</span>Devis</a><a href="#/facture-edit/nouveau"><span class="ic">${svg('facture')}</span>Facture</a><a href="#/client-edit/nouveau"><span class="ic">${svg('client')}</span>Client</a><a href="#/achat-edit/nouveau"><span class="ic">${svg('achat')}</span>Achat</a></div>`;
   // À faire
   const todos=[];
@@ -470,9 +473,7 @@ function vAccueil(){
   const recents=[...D.devis.map(d=>['devis',d]),...D.factures.map(f=>['facture',f])].sort((a,b)=>(b[1].maj||b[1].cree||'').localeCompare(a[1].maj||a[1].cree||'')).slice(0,4);
   if(recents.length)h+=`<h2>Récemment</h2><div class="list">${recents.map(([ty,d])=>ligneDoc(ty,d,true)).join('')}</div>`;
   // URSSAF
-  h+=`<details class="card"><summary>Pour ma déclaration URSSAF ${bulle('urssaf')}</summary><div class="scroll"><table class="t"><thead><tr><th>Période</th><th class="n">Ventes</th><th class="n">Services</th><th class="n">Cotisations*</th></tr></thead><tbody>`+
-    P.map(p=>{const e=encaisse(p.de,p.a);return `<tr><td>${p.lib}</td><td class="n">${eur(e.vente)}</td><td class="n">${eur(e.service)}</td><td class="n">${eur(e.cotis)}</td></tr>`}).join('')+
-    `</tbody></table></div><p class="small muted">* Estimation sur les sommes encaissées, avec ${dec(D.params.tauxVente)} % pour les ventes et ${dec(D.params.tauxService)} % pour les services. Les deux se déclarent sur des lignes séparées. Hors versement libératoire et contribution à la formation.</p></details>`;
+
   h+=`<details class="card"><summary>Mes plafonds ${y}</summary><div style="margin-top:12px">`+
     barre('Plafond micro (total : '+eur(D.params.plafondVente)+')',an.total,D.params.plafondVente)+
     barre('Plafond micro (services : '+eur(D.params.plafondService)+')',an.service,D.params.plafondService)+
