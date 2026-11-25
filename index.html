@@ -599,7 +599,7 @@ function docHtml(type,d){
   <table><thead><tr><th>Désignation</th><th class="n">Qté</th><th>Unité</th><th class="n">Prix unit.</th><th class="n">Total</th></tr></thead><tbody>
   ${lignes.map(l=>`<tr><td>${nl(l.designation)}</td><td class="n">${dec(num(l.qte))}</td><td>${esc(l.unite)}</td><td class="n">${eur(num(l.pu))}</td><td class="n">${eur(num(l.qte)*num(l.pu))}</td></tr>`).join('')}
   </tbody></table>
-  <div class="tot"><div><span>Total HT</span><span>${eur(totalDoc(d))}</span></div><div><span>TVA</span><span>0,00 €</span></div><div class="big"><span>${isF?'Net à payer':'Total'}</span><span>${eur(totalDoc(d))}</span></div></div>
+  <div class="tot"><div><span>Total HT</span><span>${eur(totalDoc(d))}</span></div><div class="big"><span>${isF?'Net à payer':'Total'}</span><span>${eur(totalDoc(d))}</span></div></div>
   <p style="font-size:11.5px;margin-top:6px"><b>TVA non applicable, art. 293 B du CGI</b></p>
   ${d.notes?`<p style="margin-top:12px">${nl(d.notes)}</p>`:''}
   <div class="mentions">
