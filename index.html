@@ -19,11 +19,11 @@
 <style>
 /* Kwik : encre bleue de stylo sur papier, surligneur jaune pour ce qui compte. */
 :root{
-  --bg:#F3F4F8; --surface:#FFFFFF; --sunk:#EEF0F6; --ink:#141A33; --muted:#5B6280; --line:#E1E4EE;
+  --bg:#F4F5F7; --surface:#FFFFFF; --sunk:#EFF1F5; --ink:#161A2B; --muted:#4B5270; --line:#DFE2EA;
   --brand:#2B3FD6; --brand-ink:#FFFFFF; --brand-soft:#E8EBFF; --brand-deep:#1B2A9E;
   --hi:#FFD23F; --hi-ink:#2A2200; --hi-soft:#FFF4C7;
   --ok:#147A42; --ok-soft:#DFF3E7; --warn:#9A5A00; --warn-soft:#FDF0D7; --bad:#C0262D; --bad-soft:#FCE6E7;
-  --shadow:0 1px 2px rgba(20,26,51,.05),0 4px 14px rgba(20,26,51,.06);
+  --shadow:0 1px 2px rgba(22,26,43,.04),0 2px 10px rgba(22,26,43,.05);
   --font-d:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
   --font-b:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --r:18px; --r-s:12px;
@@ -43,7 +43,7 @@
   --shadow:none; color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--font-b);-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:17px/1.5 var(--font-b);-webkit-text-size-adjust:100%}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--brand)}
 :focus-visible{outline:3px solid var(--brand);outline-offset:2px;border-radius:8px}
@@ -81,8 +81,8 @@ h2{font:700 18px/1.2 var(--font-d);margin:24px 0 10px;letter-spacing:-.2px}
 .item:last-child{border-bottom:0}
 .item .av{width:40px;height:40px;border-radius:12px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;font:700 15px var(--font-d);flex:none}
 .item .grow{flex:1;min-width:0}
-.item .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item .s{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .t{font-weight:600;font-size:16.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .s{font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .end{text-align:right;flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .amount{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
 .chev{color:var(--muted);flex:none}
@@ -134,6 +134,56 @@ label.f input:focus,label.f select:focus,label.f textarea:focus,.field:focus{bor
 .seg input:checked+span{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
 .seg input:focus-visible+span{outline:3px solid var(--brand)}
 
+.seg.big{margin:0 0 18px;padding:5px}
+.seg.big span{padding:12px 6px;font-size:16px}
+.swatches{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.sw{border:2px solid var(--line);background:var(--surface);border-radius:16px;padding:12px;cursor:pointer;text-align:left;display:flex;gap:10px;align-items:center;font-weight:600}
+.sw.on{border-color:var(--ink)}
+.sw i{display:flex;width:44px;height:28px;border-radius:8px;overflow:hidden;flex:none}
+.sw i b{flex:1}
+/* Assistant */
+body.wizard .tabs,body.wizard .top,body.wizard #actionbar{display:none}
+body.wizard main{padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(120px + env(safe-area-inset-bottom))}
+.wz-prog{display:flex;gap:6px;margin:4px 0 22px}
+.wz-prog i{flex:1;height:6px;border-radius:9px;background:var(--line)}
+.wz-prog i.on{background:var(--brand)}
+.wz-step{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.wz-t{font:800 30px/1.1 var(--font-d);letter-spacing:-.5px;margin:6px 0 10px;text-wrap:balance}
+.wz-p{color:var(--muted);margin:0 0 20px;font-size:17px}
+.wz-foot{position:fixed;left:0;right:0;bottom:0;z-index:6;padding:12px max(16px,env(safe-area-inset-right)) calc(14px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:linear-gradient(to bottom,transparent,var(--bg) 25%)}
+.wz-foot .in{max-width:640px;margin:0 auto;display:flex;gap:10px}
+.wz-foot .btn{flex:1;min-height:54px;font-size:17px}
+.wz-foot .btn.ghost{flex:0 0 auto}
+.choice{display:flex;gap:14px;align-items:center;width:100%;text-align:left;background:var(--surface);border:2px solid var(--line);border-radius:18px;padding:16px;margin-bottom:10px;cursor:pointer;font-size:16px}
+.choice.on{border-color:var(--brand);background:var(--brand-soft)}
+.choice .em{font-size:30px;line-height:1;flex:none}
+.choice b{display:block;font-size:17px}
+.choice span.s{color:var(--muted);font-size:14.5px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px dashed var(--line);border-radius:18px;padding:26px 16px;background:var(--surface);cursor:pointer;text-align:center;color:var(--muted)}
+.drop input{display:none}
+.mini-doc{background:#fff;color:#111;border-radius:12px;padding:16px;border:1px solid var(--line);font:12px/1.4 Arial,sans-serif;margin-top:14px}
+.mini-doc img{max-height:50px;max-width:130px;display:block;margin-bottom:6px}
+.check{display:flex;gap:12px;align-items:center;padding:12px 0;font-weight:500;cursor:pointer}
+.check input{width:22px;height:22px;accent-color:var(--brand)}
+.bullets{list-style:none;padding:0;margin:0 0 10px}
+.bullets li{display:flex;gap:12px;align-items:flex-start;padding:10px 0;font-size:16.5px}
+.bullets li .em{font-size:24px;line-height:1.1}
+/* Barres des mois */
+.months{display:flex;align-items:flex-end;gap:4px;height:62px;margin:2px 0 4px}
+.months div{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.months i{display:block;width:100%;max-width:18px;border-radius:5px 5px 2px 2px;background:rgba(255,255,255,.28);min-height:3px}
+.months .on i{background:var(--hi)}
+.months span{font-size:10.5px;opacity:.7;line-height:1}
+.months .on span{opacity:1;font-weight:700}
+.aside{display:flex;gap:14px;align-items:center}
+.aside .em{font-size:30px}
+.aside b.big{font:800 24px var(--font-d);display:block;font-variant-numeric:tabular-nums}
+/* Confettis */
+.confetti{position:fixed;top:-12px;width:9px;height:14px;border-radius:2px;z-index:50;pointer-events:none;animation:tomber 1.6s cubic-bezier(.3,.6,.5,1) forwards}
+@keyframes tomber{to{transform:translateY(105vh) rotate(540deg);opacity:.6}}
+.doc .cgv{margin-top:26px;font-size:9.5px;line-height:1.45;color:#222;columns:2;column-gap:22px}
+.doc .cgv h4{column-span:all;font-size:13px;margin:0 0 8px;color:#111}
+@media print{.doc .cgv{break-before:page}}
 /* Choix client (éditeur) */
 .picker{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;border-radius:14px;border:1.5px dashed var(--line);background:var(--sunk);cursor:pointer;text-align:left;min-height:58px}
 .picker.set{border-style:solid;background:var(--surface)}
@@ -320,7 +370,7 @@ const svg=(k,cls='i')=>`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="tru
 const KEY='kwik_v1';
 const PARAMS_DEFAUT={tauxVente:12.3,tauxService:21.2,plafondVente:203100,plafondService:83600,tvaVente:85000,tvaService:37500};
 function vide(){return{
-  entreprise:{prenomNom:'',nomCommercial:'',siret:'',adresse:'',cp:'',ville:'',email:'',tel:'',activite:'service',logo:'',iban:'',bic:'',delai:30,assurance:'',mentionLibre:''},
+  entreprise:{prenomNom:'',nomCommercial:'',siret:'',adresse:'',cp:'',ville:'',email:'',tel:'',activite:'service',logo:'',iban:'',bic:'',delai:30,assurance:'',mentionLibre:'',metier:'',cgv:'',cgvDevis:true,cgvFacture:true},
   clients:[],produits:[],devis:[],factures:[],achats:[],compteurs:{},params:Object.assign({},PARAMS_DEFAUT),derniereSauvegarde:''}}
 function fusion(d){const v=vide();const out=Object.assign(v,d);out.entreprise=Object.assign(vide().entreprise,d.entreprise||{});out.params=Object.assign({},PARAMS_DEFAUT,d.params||{});return out}
 function charger(){try{const s=localStorage.getItem(KEY);if(s)return fusion(JSON.parse(s))}catch(e){}return vide()}
@@ -356,9 +406,9 @@ function sheetCreer(){openSheet(`<h3>Créer</h3><div class="list">
   <a class="item" href="#/client-edit/nouveau" onclick="closeSheet()"><span class="av">${svg('client')}</span><span class="grow"><span class="t" style="display:block">Un client</span><span class="s" style="display:block">L'ajouter à votre carnet</span></span>${svg('chev','i chev')}</a>
   <a class="item" href="#/achat-edit/nouveau" onclick="closeSheet()"><span class="av">${svg('achat')}</span><span class="grow"><span class="t" style="display:block">Un achat</span><span class="s" style="display:block">Noter une dépense professionnelle</span></span>${svg('chev','i chev')}</a>
   </div>`)}
-$('#fab').onclick=sheetCreer;
+$('#fab').onclick=()=>{ED=null;if(location.hash==='#/devis-edit/nouveau')route();else go('#/devis-edit/nouveau')};
 function sheetMenu(){const it=(h,ic,t,s)=>`<a class="item" href="${h}" onclick="closeSheet()"><span class="av">${svg(ic)}</span><span class="grow"><span class="t" style="display:block">${t}</span><span class="s" style="display:block">${s}</span></span>${svg('chev','i chev')}</a>`;
-  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos prix enregistrés')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.2 · vos données restent sur ce téléphone</p>`)}
+  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos prix enregistrés')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/apparence','edit','Apparence','Couleurs, taille du texte, mode sombre')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.4 · vos données restent sur ce téléphone</p>`)}
 
 /* ============ Routeur ============ */
 let ED=null,RETOUR_CLIENT=null,AFTER=null;
@@ -373,8 +423,8 @@ function route(){
   const r=parts[0];
   const onglet={accueil:'accueil',devis:'devis','devis-edit':'devis',factures:'factures','facture-edit':'factures',voir:parts[1]==='devis'?'devis':'factures',clients:'clients','client-edit':'clients'}[r]||'';
   document.querySelectorAll('#tabs a').forEach(a=>a.classList.toggle('on',a.dataset.r===onglet));
-  actionbar('');
-  const V={accueil:vAccueil,devis:vListeDevis,factures:vListeFactures,clients:vClients,'client-edit':vClientEdit,catalogue:vCatalogue,'produit-edit':vProduitEdit,achats:vAchats,'achat-edit':vAchatEdit,recettes:vRecettes,entreprise:vEntreprise,sauvegarde:vSauvegarde,'devis-edit':p=>vEditDoc('devis',p),'facture-edit':p=>vEditDoc('facture',p),voir:vVoir,aide:vAide}[r]||vAccueil;
+  actionbar('');document.body.classList.toggle('wizard',r==='bienvenue');
+  const V={accueil:vAccueil,devis:vListeDevis,factures:vListeFactures,clients:vClients,'client-edit':vClientEdit,catalogue:vCatalogue,'produit-edit':vProduitEdit,achats:vAchats,'achat-edit':vAchatEdit,recettes:vRecettes,entreprise:vEntreprise,sauvegarde:vSauvegarde,'devis-edit':p=>vEditDoc('devis',p),'facture-edit':p=>vEditDoc('facture',p),voir:vVoir,aide:vAide,apparence:vApparence,bienvenue:vBienvenue}[r]||vAccueil;
   $('#main').innerHTML=V(parts[1],parts.slice(2).join('/'))||'';
   window.scrollTo(0,0);
   if(AFTER){const f=AFTER;AFTER=null;f()}
@@ -394,9 +444,14 @@ function vAccueil(){
   const h0=new Date().getHours();
   let h=`<div class="hello">${h0<18&&h0>=5?'Bonjour':'Bonsoir'}${prenom()?' '+esc(prenom()):''} 👋</div><div class="muted">${D.factures.length||D.devis.length?'Voici où vous en êtes.':'Bienvenue dans Kwik.'}</div>`;
   // Premiers pas
-  const etapes=[[entrepriseOk(),'#/entreprise','Remplir ma fiche entreprise','Nom, SIRET, adresse : ils apparaissent sur vos documents'],[D.clients.length>0,'#/client-edit/nouveau','Ajouter un premier client','Particulier ou professionnel'],[D.devis.length+D.factures.length>0,'#/devis-edit/nouveau','Faire mon premier devis','Il se transforme en facture en un geste']];
+  const etapes=[[entrepriseOk(),'#/bienvenue/1','Préparer mon entreprise','2 minutes, guidé pas à pas : nom, SIRET, logo, CGV'],[D.clients.length>0,'#/client-edit/nouveau','Ajouter un premier client','Particulier ou professionnel'],[D.devis.length+D.factures.length>0,'#/devis-edit/nouveau','Faire mon premier devis','Il se transforme en facture en un geste']];
   if(etapes.some(e=>!e[0]))h+=`<h2>Pour bien démarrer</h2><div class="list steps">${etapes.map((e,i)=>`<a class="item ${e[0]?'done':''}" href="${e[1]}"><span class="av">${e[0]?svg('check'):i+1}</span><span class="grow"><span class="t" style="display:block">${e[2]}</span><span class="s" style="display:block">${e[3]}</span></span>${e[0]?'':svg('chev','i chev')}</a>`).join('')}</div>`;
-  h+=`<div class="hero"><div class="l">Encaissé en ${MOIS[m-1]}</div><div class="v">${eur(mois.total)}</div><div class="split"><div class="mark"><b>${eur(totAEnc)}</b><span>À encaisser</span></div><div><b>${eur(an.total)}</b><span>Encaissé en ${y}</span></div></div></div>`;
+  const parMois=Array.from({length:12},(_,i)=>encaisse(`${y}-${pad(i+1)}-01`,`${y}-${pad(i+1)}-31`).total);const maxM=Math.max(...parMois,1);
+  h+=`<div class="hero"><div class="l">Mon chiffre d'affaires ${y}</div><div class="v">${eur(an.total)}</div>
+    <div class="months" aria-hidden="true">${parMois.map((v,i)=>`<div class="${i===m-1?'on':''}"><i style="height:${Math.max(4,Math.round(v/maxM*46))}px"></i><span>${'JFMAMJJASOND'[i]}</span></div>`).join('')}</div>
+    <div class="split" style="margin-top:12px"><div class="mark"><b>${eur(totAEnc)}</b><span>À encaisser</span></div><div><b>${eur(mois.total)}</b><span>En ${MOIS[m-1]}</span></div></div></div>`;
+  const trim=encaisse(P[2].de,P[2].a);
+  if(an.total>0)h+=`<div class="card aside"><span class="em">🐷</span><span style="flex:1;min-width:0"><span class="small muted" style="display:block">À mettre de côté pour l'URSSAF (ce trimestre)</span><b class="big">${eur(trim.cotis)}</b><span class="small muted">Environ ${dec(D.params.tauxVente)} % de vos ventes et ${dec(D.params.tauxService)} % de vos services encaissés.</span></span></div>`;
   h+=`<div class="quick"><a href="#/devis-edit/nouveau"><span class="ic">${svg('devis')}</span>Devis</a><a href="#/facture-edit/nouveau"><span class="ic">${svg('facture')}</span>Facture</a><a href="#/client-edit/nouveau"><span class="ic">${svg('client')}</span>Client</a><a href="#/achat-edit/nouveau"><span class="ic">${svg('achat')}</span>Achat</a></div>`;
   // À faire
   const todos=[];
@@ -484,7 +539,7 @@ function vProduitEdit(id){const p=id&&id!=='nouveau'?parId(D.produits,id):{id:''
   </form>`}
 
 /* ============ Édition devis / facture ============ */
-function nouvelleLigne(){return{designation:'',qte:1,unite:'',pu:'',nature:D.entreprise.activite==='vente'?'vente':'service'}}
+function nouvelleLigne(){return{designation:'',qte:1,unite:'',pu:'',nature:D.entreprise.activite==='service'?'service':'vente'}}
 function vEditDoc(type,id){
   const liste=type==='devis'?D.devis:D.factures;const key=id||'nouveau';
   if(!ED||ED._type!==type||ED._id!==key){
@@ -499,6 +554,7 @@ function vEditDoc(type,id){
   let h='';
   if(!entrepriseOk())h+=`<div class="alert info">Votre fiche entreprise est incomplète. <a href="#/entreprise">La remplir</a></div>`;
   if(isF&&ED.numero)h+=`<div class="alert">Si cette facture a déjà été envoyée au client, mieux vaut ne plus la modifier.</div>`;
+  if(!ED.id&&!ED.devisId)h+=`<div class="seg big" role="radiogroup" aria-label="Type de document"><label><input type="radio" name="dtype" ${!isF?'checked':''} onchange="App.basculer('devis')"><span>Devis</span></label><label><input type="radio" name="dtype" ${isF?'checked':''} onchange="App.basculer('facture')"><span>Facture</span></label></div>`;
   h+=`<div class="eyebrow" style="margin:6px 0 8px">Client</div><div id="pick">${pickerHtml()}</div>
   <div class="eyebrow" style="margin:20px 0 8px">Ce que vous facturez</div><div id="lignes">${lignesHtml()}</div>
   <div class="add-row"><button class="btn" onclick="App.ajLigne()">+ Ligne</button>${D.produits.length?`<button class="btn" onclick="App.sheetCatalogue()">+ Catalogue</button>`:''}</div>
@@ -509,11 +565,12 @@ function vEditDoc(type,id){
   </div></details>
   <details class="card" ${ED.notes?'open':''}><summary>Note pour le client</summary><label class="f" style="margin:12px 0 0"><textarea oninput="ED.notes=this.value" placeholder="Ex. : délai d'intervention, conditions particulières">${esc(ED.notes)}</textarea></label></details>
   <p class="small muted">TVA non applicable (franchise en base) : les montants sont nets.</p>`;
-  AFTER=()=>actionbar(`<div class="tot"><span class="small muted">Total</span><b id="edTotal">${eur(totalDoc(ED))}</b></div><button class="btn primary" onclick="App.sauverDoc()">${svg('check')} Enregistrer</button>`);
+  AFTER=()=>{actionbar(`<div class="tot"><span class="small muted">Total</span><b id="edTotal">${eur(totalDoc(ED))}</b></div><button class="btn primary" onclick="App.sauverDoc()">${svg('check')} Enregistrer</button>`);
+    if(!ED.id&&!ED.clientId&&D.clients.length&&!ED._auto){ED._auto=true;App.sheetClients()}};
   return h}
 function pickerHtml(){const c=parId(D.clients,ED.clientId);
   return c?`<button class="picker set" onclick="App.sheetClients()"><span class="av" style="width:40px;height:40px;border-radius:12px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;font:700 15px var(--font-d)">${esc(initiales(c.nom))}</span><span class="grow"><b style="display:block">${esc(c.nom)}</b><span class="small muted">${c.type==='pro'?'Professionnel':'Particulier'}${c.ville?' · '+esc(c.ville):''}</span></span><span class="small" style="color:var(--brand);font-weight:600">Changer</span></button>`
-   :`<button class="picker" onclick="App.sheetClients()"><span class="grow"><b style="color:var(--brand)">+ Choisir ou ajouter un client</b></span></button>`}
+   :`<button class="picker" onclick="App.sheetClients()"><span class="grow"><b style="color:var(--brand);display:block">Choisir un client</b><span class="small muted">Dans votre liste, ou en ajouter un nouveau</span></span></button>`}
 function lignesHtml(){return ED.lignes.map((l,i)=>`<div class="ligne">
   <div style="display:flex;gap:8px;align-items:flex-start"><input class="des" placeholder="Ex. : pose de carrelage" value="${esc(l.designation)}" oninput="ED.lignes[${i}].designation=this.value" aria-label="Désignation">${ED.lignes.length>1?`<button class="x" onclick="App.supLigne(${i})" aria-label="Retirer la ligne">${svg('trash')}</button>`:''}</div>
   <div class="row">
@@ -546,9 +603,12 @@ function docHtml(type,d){
    :`<p>Devis gratuit, valable jusqu'au ${fdate(d.validite)}.${e.delai?` Paiement à ${esc(e.delai)} jours après facturation.`:''}</p>`}
   ${e.assurance?`<p>Assurance professionnelle : ${nl(e.assurance)}</p>`:''}
   ${e.mentionLibre?`<p>${nl(e.mentionLibre)}</p>`:''}
+  ${cgvJointes(e,isF)?`<p>Nos conditions générales de vente sont jointes à ce document.</p>`:''}
   </div>
-  ${!isF?`<div class="sign"><div>Bon pour accord, date et signature du client :</div></div>`:''}
+  ${!isF?`<div class="sign"><div>Bon pour accord, date et signature du client${cgvJointes(e,isF)?', précédés de la mention « Lu et approuvé, CGV acceptées »':''} :</div></div>`:''}
+  ${cgvJointes(e,isF)?`<div class="cgv"><h4>Conditions générales de vente</h4>${nl(e.cgv)}</div>`:''}
   </div>`}
+const cgvJointes=(e,isF)=>!!(e.cgv&&String(e.cgv).trim()&&(isF?e.cgvFacture:e.cgvDevis));
 function vVoir(type,id){
   const liste=type==='devis'?D.devis:D.factures;const d=parId(liste,id);if(!d){go('#/'+(type==='devis'?'devis':'factures'));return ''}
   ED=null;const isF=type==='facture';
@@ -607,7 +667,8 @@ function vEntreprise(){titre('Mon entreprise','#/accueil','');const e=D.entrepri
   <label class="f">Adresse<input name="adresse" required value="${esc(e.adresse)}"></label>
   <div class="grid2"><label class="f">Code postal<input name="cp" inputmode="numeric" value="${esc(e.cp)}"></label><label class="f">Ville<input name="ville" value="${esc(e.ville)}"></label></div>
   <div class="grid2"><label class="f">Téléphone<input name="tel" type="tel" value="${esc(e.tel)}"></label><label class="f">E-mail<input name="email" type="email" value="${esc(e.email)}"></label></div>
-  <div class="f" style="margin-bottom:14px"><span style="font-size:13.5px;font-weight:600;color:var(--muted)">Activité principale</span><div class="seg"><label><input type="radio" name="activite" value="service" ${e.activite!=='vente'?'checked':''}><span>Services</span></label><label><input type="radio" name="activite" value="vente" ${e.activite==='vente'?'checked':''}><span>Vente</span></label></div></div>
+  <div class="f" style="margin-bottom:14px"><span style="font-size:13.5px;font-weight:600;color:var(--muted)">Activité principale</span><div class="seg"><label><input type="radio" name="activite" value="vente" ${e.activite==='vente'?'checked':''}><span>Vente</span></label><label><input type="radio" name="activite" value="service" ${e.activite==='service'?'checked':''}><span>Services</span></label><label><input type="radio" name="activite" value="mixte" ${e.activite==='mixte'?'checked':''}><span>Les deux</span></label></div></div>
+  <label class="f">Mon métier<input name="metier" value="${esc(e.metier)}" placeholder="Ex. : potière, plombier, coiffeuse"></label>
   <label class="f">Logo (facultatif)<input type="file" accept="image/*" onchange="App.logo(this)"></label>
   <div id="logoPrev">${e.logo?`<img src="${e.logo}" style="max-height:60px;max-width:160px"> <button type="button" class="btn sm ghost" onclick="App.retirerLogo()">Retirer</button>`:''}</div>
   </div>
@@ -620,6 +681,14 @@ function vEntreprise(){titre('Mon entreprise','#/accueil','');const e=D.entrepri
   <label class="f">Assurance professionnelle<textarea name="assurance" placeholder="Obligatoire pour les artisans du bâtiment (décennale) : assureur, n° de contrat, zone couverte">${esc(e.assurance)}</textarea></label>
   <label class="f" style="margin:0">Autre mention en bas de page<textarea name="mentionLibre" placeholder="Ex. : Dispensé d'immatriculation au RCS et au RM">${esc(e.mentionLibre)}</textarea></label>
   </div>
+  <h2>Conditions générales de vente</h2><div class="card">
+  <p class="hint" style="margin:0 0 12px">Les CGV expliquent vos règles (paiement, livraison, retours, garanties). Elles s'impriment en page 2 de vos documents.</p>
+  <div class="btns" style="margin-top:0"><button type="button" class="btn sm ghost" onclick="App.modeleCgv('vente')">Modèle vente d'objets</button><button type="button" class="btn sm ghost" onclick="App.modeleCgv('service')">Modèle prestations</button></div>
+  <label class="f"><textarea name="cgv" id="cgvTxt" style="min-height:180px" placeholder="Choisissez un modèle ci-dessus, puis adaptez-le.">${esc(e.cgv)}</textarea></label>
+  <label class="check"><input type="checkbox" name="cgvDevis" ${e.cgvDevis?'checked':''}> Joindre aux devis</label>
+  <label class="check" style="padding-top:0"><input type="checkbox" name="cgvFacture" ${e.cgvFacture?'checked':''}> Joindre aux factures</label>
+  </div>
+  <a class="btn ghost block" href="#/bienvenue/1" style="margin-bottom:12px">Refaire l'assistant de démarrage</a>
   <details class="card"><summary>Taux et plafonds</summary><div style="margin-top:12px">
   <p class="hint" style="margin:0 0 12px">Valeurs 2026 pour les micro-entrepreneurs. Modifiez-les si elles changent.</p>
   <div class="grid2"><label class="f">Cotisations ventes (%)<input name="tauxVente" inputmode="decimal" value="${dec(p.tauxVente)}"></label><label class="f">Cotisations services (%)<input name="tauxService" inputmode="decimal" value="${dec(p.tauxService)}"></label>
@@ -663,7 +732,156 @@ function messageDoc(type,d){const e=D.entreprise;const c=d.client||{};const nom=
   if(enRetard(d))return `Bonjour${nom?' '+nom:''},\n\nSauf erreur de ma part, la facture ${d.numero} de ${eur(totalDoc(d))}, arrivée à échéance le ${fdate(d.echeance)}, n'a pas encore été réglée.\n\nMerci de bien vouloir procéder au paiement${e.iban?' par virement (IBAN '+e.iban+')':''}.\n\nBien cordialement,\n${e.prenomNom||''}${e.tel?'\n'+e.tel:''}`;
   return `Bonjour${nom?' '+nom:''},\n\nVoici ma facture ${d.numero} d'un montant de ${eur(totalDoc(d))}, à régler avant le ${fdate(d.echeance)}${e.iban?' par virement (IBAN '+e.iban+')':''}.\n\nMerci !\n${e.prenomNom||''}${e.tel?'\n'+e.tel:''}`}
 
+
+/* ============ Assistant de démarrage ============ */
+function confettis(){if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const cols=['#FFD23F','#2B3FD6','#2E7556','#F7A46B','#D29BE3','#6ED69A'];
+  for(let i=0;i<36;i++){const c=document.createElement('i');c.className='confetti';c.style.left=Math.random()*100+'vw';c.style.background=cols[i%cols.length];c.style.animationDelay=(Math.random()*.35)+'s';c.style.transform=`rotate(${Math.random()*180}deg)`;document.body.appendChild(c);setTimeout(()=>c.remove(),2200)}}
+const WZ_N=7;
+function wzCadre(n,titre,texte,corps,suivant='Continuer',passer=''){
+  return `<div class="wz-prog">${Array.from({length:WZ_N},(_,i)=>`<i class="${i<n?'on':''}"></i>`).join('')}</div>
+  <div class="wz-step">Étape ${n} sur ${WZ_N}</div><div class="wz-t">${titre}</div>${texte?`<p class="wz-p">${texte}</p>`:''}
+  <form id="wz" onsubmit="App.wzSuivant(event,${n})">${corps}
+  <div class="wz-foot"><div class="in">${n>1?`<button type="button" class="btn ghost" onclick="go('#/bienvenue/${n-1}')" aria-label="Étape précédente">${svg('chev','i').replace('M9 6l6 6-6 6','M15 18l-6-6 6-6')}</button>`:''}${passer?`<button type="button" class="btn ghost" onclick="App.wzPasser(${n})">${passer}</button>`:''}<button class="btn primary">${suivant}</button></div></div></form>`}
+function vBienvenue(n){n=Math.min(WZ_N,Math.max(1,+n||1));titre('','', '');const e=D.entreprise;
+  if(n===1)return `<div style="font-size:54px;margin:10px 0 4px">👋</div><div class="wz-t">Bienvenue dans Kwik</div><p class="wz-p">Kwik vous aide à faire de beaux devis et factures, et à savoir où en est votre argent. Même si vous n'avez jamais fait de compta.</p>
+    <ul class="bullets"><li><span class="em">📝</span><span><b>Des devis et factures en règle</b><br><span class="muted">Toutes les mentions obligatoires sont ajoutées pour vous.</span></span></li>
+    <li><span class="em">💶</span><span><b>Votre chiffre d'affaires d'un coup d'œil</b><br><span class="muted">Ce que vous avez gagné, ce qu'on vous doit.</span></span></li>
+    <li><span class="em">🐷</span><span><b>Ce qu'il faut mettre de côté</b><br><span class="muted">Le montant à prévoir pour l'URSSAF, calculé tout seul.</span></span></li></ul>
+    <p class="small muted">Préparons votre entreprise : 6 petites étapes, environ 2 minutes.</p>
+    <div class="wz-foot"><div class="in"><button class="btn ghost" onclick="App.wzFin(false)">Plus tard</button><button class="btn primary" onclick="go('#/bienvenue/2')">C'est parti</button></div></div>`;
+  if(n===2)return wzCadre(2,'Qui êtes-vous ?','Votre nom apparaîtra en haut de vos devis et factures.',
+    `<label class="f">Prénom et nom<input name="prenomNom" required value="${esc(e.prenomNom)}" placeholder="Ex. : Camille Martin" autocomplete="name"></label>
+     <label class="f">Nom de votre marque (facultatif)<input name="nomCommercial" value="${esc(e.nomCommercial)}" placeholder="Ex. : Les Poteries de Camille"></label>
+     <p class="hint">Kwik ajoute tout seul « EI » (entrepreneur individuel) après votre nom : c'est obligatoire.</p>`);
+  if(n===3)return wzCadre(3,'Que faites-vous ?','Cela sert à bien calculer vos cotisations : les ventes et les services n\'ont pas le même taux.',
+    `<input type="hidden" name="activite" id="wzAct" value="${esc(e.activite||'vente')}">
+     ${[['vente','🏺','Je vends des objets','Que je fabrique ou que j\'achète pour revendre'],['service','🔧','Je fais des prestations','Travaux, réparations, cours, services…'],['mixte','✨','Les deux','Par exemple : je vends mes poteries et je donne des ateliers']].map(([k,em,t,st])=>`<button type="button" class="choice ${(e.activite||'vente')===k?'on':''}" onclick="document.getElementById('wzAct').value='${k}';document.querySelectorAll('.choice').forEach(c=>c.classList.remove('on'));this.classList.add('on')"><span class="em">${em}</span><span><b>${t}</b><span class="s">${st}</span></span></button>`).join('')}
+     <label class="f" style="margin-top:8px">Votre métier<input name="metier" value="${esc(e.metier)}" placeholder="Ex. : potière, plombier, coiffeuse"></label>`);
+  if(n===4)return wzCadre(4,'Vos coordonnées','Elles sont obligatoires sur une facture.',
+    `<label class="f">Numéro SIRET<input name="siret" inputmode="numeric" value="${esc(e.siret)}" placeholder="14 chiffres"></label>
+     <p class="hint">Vous le trouvez sur votre attestation d'immatriculation, ou sur annuaire-entreprises.data.gouv.fr en tapant votre nom.</p>
+     <label class="f">Adresse<input name="adresse" value="${esc(e.adresse)}" autocomplete="street-address"></label>
+     <div class="grid2"><label class="f">Code postal<input name="cp" inputmode="numeric" value="${esc(e.cp)}" autocomplete="postal-code"></label><label class="f">Ville<input name="ville" value="${esc(e.ville)}"></label></div>
+     <div class="grid2"><label class="f">Téléphone<input name="tel" type="tel" value="${esc(e.tel)}" autocomplete="tel"></label><label class="f">E-mail<input name="email" type="email" value="${esc(e.email)}" autocomplete="email"></label></div>`);
+  if(n===5)return wzCadre(5,'Votre logo','Il donne un air pro à vos documents. Une photo ou une image de votre téléphone suffit.',
+    `<label class="drop"><input type="file" accept="image/*" onchange="App.logo(this,true)"><span style="font-size:34px">🖼️</span><b style="color:var(--ink)">Choisir une image</b><span class="small">Elle sera réduite automatiquement</span></label>
+     <div class="mini-doc" id="wzApercu">${miniDoc()}</div>`,'Continuer',e.logo?'':'Plus tard');
+  if(n===6)return wzCadre(6,'Comment être payé ?','Ces infos apparaissent en bas de vos factures.',
+    `<div class="f" style="margin-bottom:14px"><span style="font-size:13.5px;font-weight:600;color:var(--muted)">Vos clients paient…</span><div class="seg">${[[0,'À réception'],[15,'Sous 15 j'],[30,'Sous 30 j']].map(([v,l])=>`<label><input type="radio" name="delai" value="${v}" ${(+e.delai===v||(v===30&&![0,15,30].includes(+e.delai)))?'checked':''}><span>${l}</span></label>`).join('')}</div></div>
+     <label class="f">Votre IBAN (facultatif)<input name="iban" value="${esc(e.iban)}" placeholder="FR76 …"></label>
+     <p class="hint">Pour que vos clients puissent vous payer par virement. Il est sur votre RIB.</p>`);
+  if(n===7){const m=e.cgv?'':(e.activite==='service'?'service':'vente');
+    return wzCadre(7,'Vos conditions de vente','Les CGV expliquent vos règles : paiement, livraison, retours, garanties. Kwik vous propose un modèle à adapter.',
+    `<input type="hidden" name="modele" id="wzMod" value="${e.cgv?'garder':m}">
+     ${e.cgv?`<button type="button" class="choice on" onclick="App.wzMod(this,'garder')"><span class="em">✅</span><span><b>Garder mes CGV actuelles</b><span class="s">Vous pourrez les modifier dans Mon entreprise</span></span></button>`:''}
+     <button type="button" class="choice ${m==='vente'&&!e.cgv?'on':''}" onclick="App.wzMod(this,'vente')"><span class="em">🏺</span><span><b>Vente d'objets faits main</b><span class="s">Poterie, bijoux, créations… avec commandes sur mesure</span></span></button>
+     <button type="button" class="choice ${m==='service'&&!e.cgv?'on':''}" onclick="App.wzMod(this,'service')"><span class="em">🔧</span><span><b>Prestations et travaux</b><span class="s">Interventions, réparations, cours…</span></span></button>
+     <button type="button" class="choice" onclick="App.wzMod(this,'aucun')"><span class="em">⏭️</span><span><b>Pas maintenant</b><span class="s">Vous pourrez en ajouter plus tard</span></span></button>
+     <p class="hint" style="margin-top:6px">Le modèle est une base sérieuse, mais pas un avis juridique : relisez-le et complétez les passages entre crochets.</p>`,'Terminer')}
+}
+function miniDoc(){const e=D.entreprise;return `${e.logo?`<img src="${e.logo}" alt="">`:''}<b>${esc(e.prenomNom||'Votre nom')} EI</b>${e.nomCommercial?'<br>'+esc(e.nomCommercial):''}<br><span style="color:#666">SIRET ${esc(e.siret||'…')}</span><div style="text-align:right;color:#1B2A9E;font-weight:800;font-size:16px;margin-top:-34px">DEVIS</div>`}
+function modeleCgv(type){const e=D.entreprise;const qui=`${e.prenomNom||'[Prénom Nom]'} EI${e.nomCommercial?' ('+e.nomCommercial+')':''}, ${e.adresse||'[adresse]'} ${e.cp||''} ${e.ville||''}, SIRET ${e.siret||'[SIRET]'}${e.email?', '+e.email:''}${e.tel?', '+e.tel:''}`.replace(/\s+/g,' ');
+  const metier=e.metier?e.metier.toLowerCase():'';
+  if(type==='service')return `1. Vendeur
+Les présentes conditions générales de vente (CGV) s'appliquent aux prestations réalisées par ${qui}${metier?', '+metier:''}.
+
+2. Devis et commande
+Toute prestation fait l'objet d'un devis gratuit, valable pendant la durée indiquée. La commande est ferme dès réception du devis daté et signé avec la mention « Bon pour accord ». Un acompte de [30] % peut être demandé à la signature.
+
+3. Prix
+Les prix sont indiqués en euros. TVA non applicable, art. 293 B du CGI. Les travaux supplémentaires non prévus au devis feront l'objet d'un avenant accepté par le client.
+
+4. Paiement
+Le solde est payable à la date indiquée sur la facture, par virement, chèque ou espèces (dans la limite légale). Pour les clients professionnels, tout retard entraîne des pénalités au taux de trois fois le taux d'intérêt légal et une indemnité forfaitaire de 40 € pour frais de recouvrement.
+
+5. Délais
+Les délais d'intervention sont donnés à titre indicatif. Un retard ne peut entraîner l'annulation de la commande que s'il dépasse [30] jours après mise en demeure restée sans effet.
+
+6. Droit de rétractation (particuliers)
+Si le contrat est conclu à distance ou hors établissement (au domicile du client), le client particulier dispose de 14 jours pour se rétracter, sans justification. S'il demande que la prestation commence avant la fin de ce délai, il paiera la part déjà réalisée. Le droit de rétractation ne s'applique plus à une prestation entièrement exécutée avec son accord.
+
+7. Garanties et responsabilité
+Le vendeur s'engage à réaliser les prestations avec soin et selon les règles de l'art. ${e.assurance?'Assurance professionnelle : '+e.assurance+'.':'[Indiquer ici votre assurance professionnelle si vous en avez une.]'}
+
+8. Données personnelles
+Les coordonnées du client servent uniquement à la gestion des devis, factures et du suivi. Elles ne sont jamais revendues. Le client peut demander à les consulter ou les supprimer.
+
+9. Médiation et litiges
+En cas de litige, le client particulier peut recourir gratuitement au médiateur de la consommation : [nom et site du médiateur]. Le droit français s'applique.`;
+  return `1. Vendeur
+Les présentes conditions générales de vente (CGV) s'appliquent aux ventes de créations${metier?' ('+metier+')':''} réalisées par ${qui}, sur un marché, en atelier, à distance ou sur commande.
+
+2. Les créations
+Chaque pièce est faite à la main. De légères différences de forme, de taille, de couleur ou d'émail par rapport aux photos ou aux exemples sont normales : elles ne sont pas des défauts. [Préciser l'usage : pièces aptes au contact alimentaire, lave-vaisselle et micro-ondes oui ou non, éviter les chocs thermiques.]
+
+3. Commandes sur mesure
+Une pièce personnalisée fait l'objet d'un devis. La commande est ferme dès signature du devis et versement d'un acompte de [30] %, non remboursable une fois la fabrication commencée. Le délai de fabrication est indiqué sur le devis, à titre indicatif.
+
+4. Prix
+Les prix sont en euros. TVA non applicable, art. 293 B du CGI. Les frais d'envoi éventuels sont indiqués avant la commande et restent à la charge du client.
+
+5. Paiement
+Paiement comptant au retrait ou à l'envoi, par virement, carte, chèque ou espèces (dans la limite légale). Les créations restent la propriété du vendeur jusqu'au paiement complet. Pour les clients professionnels, tout retard entraîne des pénalités au taux de trois fois le taux d'intérêt légal et une indemnité forfaitaire de 40 € pour frais de recouvrement.
+
+6. Retrait et livraison
+Les pièces sont soigneusement emballées. Pour un client particulier, les risques sont transférés au moment où il reçoit le colis. En cas de casse à la réception, le client le signale dans les 3 jours avec des photos, pour un remplacement ou un remboursement.
+
+7. Droit de rétractation (achats à distance)
+Pour un achat à distance (internet, téléphone, réseaux sociaux), le client particulier dispose de 14 jours après réception pour se rétracter, sans justification. Il renvoie la pièce intacte à ses frais, et il est remboursé sous 14 jours. Ce droit ne s'applique pas aux pièces réalisées sur mesure ou personnalisées, ni aux achats faits sur place (marché, atelier).
+
+8. Garanties légales
+Le client particulier bénéficie de la garantie légale de conformité (articles L217-3 et suivants du Code de la consommation) pendant 2 ans à compter de la remise de la pièce, et de la garantie des vices cachés (articles 1641 et suivants du Code civil). Une casse due à une chute, un choc ou un usage non conseillé n'est pas couverte.
+
+9. Propriété des créations
+Les modèles, photos et motifs restent la propriété du vendeur et ne peuvent être reproduits sans son accord.
+
+10. Données personnelles
+Les coordonnées du client servent uniquement à la commande et à la facturation. Elles ne sont jamais revendues. Le client peut demander à les consulter ou les supprimer.
+
+11. Médiation et litiges
+En cas de litige, le client particulier peut recourir gratuitement au médiateur de la consommation : [nom et site du médiateur]. Le droit français s'applique.`}
+
+/* ============ Apparence ============ */
+const PALETTES={
+  encre:{n:'Encre',l:{brand:'#2B3FD6',deep:'#1B2A9E',soft:'#E8EBFF',hi:'#FFD23F'},d:{brand:'#8C9AFF',deep:'#2B3FD6',soft:'#1F2550',hi:'#FFD23F'}},
+  sauge:{n:'Sauge',l:{brand:'#2E7556',deep:'#1F5440',soft:'#E2F1E9',hi:'#F4C55B'},d:{brand:'#6CCB9E',deep:'#22604A',soft:'#173A2C',hi:'#F4C55B'}},
+  ardoise:{n:'Ardoise',l:{brand:'#3B4A63',deep:'#232E40',soft:'#E6EAF1',hi:'#F7A46B'},d:{brand:'#A8B6CF',deep:'#2C3A52',soft:'#252F42',hi:'#F7A46B'}},
+  prune:{n:'Prune',l:{brand:'#7A3A8C',deep:'#55276A',soft:'#F3E7F6',hi:'#F9C74F'},d:{brand:'#D29BE3',deep:'#5E2D73',soft:'#3A2142',hi:'#F9C74F'}}};
+const TAILLES={normal:['Normal',1],grand:['Grand',1.1],tresgrand:['Très grand',1.2]};
+let PREFS={palette:'encre',taille:'normal',theme:'auto'};
+try{Object.assign(PREFS,JSON.parse(localStorage.getItem('kwik_prefs')||'{}'))}catch(e){}
+const mqDark=window.matchMedia?matchMedia('(prefers-color-scheme: dark)'):{matches:false,addEventListener(){}};
+function appliquerApparence(){const r=document.documentElement;
+  if(PREFS.theme==='auto')delete r.dataset.theme;else r.dataset.theme=PREFS.theme;
+  const dark=PREFS.theme==='dark'||(PREFS.theme==='auto'&&mqDark.matches);
+  const p=(PALETTES[PREFS.palette]||PALETTES.encre)[dark?'d':'l'];
+  r.style.setProperty('--brand',p.brand);r.style.setProperty('--brand-deep',p.deep);r.style.setProperty('--brand-soft',p.soft);r.style.setProperty('--hi',p.hi);
+  document.body.style.zoom=(TAILLES[PREFS.taille]||TAILLES.normal)[1];
+  document.querySelectorAll('meta[name=theme-color]').forEach(m=>m.setAttribute('content',dark?'#0E1122':'#F4F5F7'))}
+mqDark.addEventListener&&mqDark.addEventListener('change',appliquerApparence);
+function vApparence(){titre('Apparence','#/accueil','');
+  const seg=(nom,opts,cur)=>`<div class="seg">${Object.entries(opts).map(([k,v])=>`<label><input type="radio" name="${nom}" ${cur===k?'checked':''} onchange="App.pref('${nom}','${k}')"><span>${v}</span></label>`).join('')}</div>`;
+  return `<h2 style="margin-top:4px">Couleurs</h2><div class="swatches">${Object.entries(PALETTES).map(([k,v])=>`<button class="sw ${PREFS.palette===k?'on':''}" onclick="App.pref('palette','${k}')"><i><b style="background:${v.l.deep}"></b><b style="background:${v.l.brand}"></b><b style="background:${v.l.hi}"></b></i>${v.n}</button>`).join('')}</div>
+  <h2>Taille du texte</h2>${seg('taille',Object.fromEntries(Object.entries(TAILLES).map(([k,v])=>[k,v[0]])),PREFS.taille)}
+  <h2>Mode</h2>${seg('theme',{auto:'Auto',light:'Clair',dark:'Sombre'},PREFS.theme)}
+  <p class="small muted" style="margin-top:14px">« Auto » suit le réglage de votre téléphone. Ces choix ne changent pas vos devis et factures.</p>
+  <div class="hero" style="margin-top:18px"><div class="l">Aperçu</div><div class="v">1 250,00 €</div><div class="split"><div class="mark"><b>480,00 €</b><span>À encaisser</span></div><div><b>12 400,00 €</b><span>Encaissé</span></div></div></div>`}
+
 const App={
+  wzSuivant(ev,n){const o=formData(ev);
+    if(n===7){if(o.modele==='vente'||o.modele==='service'){D.entreprise.cgv=modeleCgv(o.modele);D.entreprise.cgvDevis=true;D.entreprise.cgvFacture=true}enregistrer();return App.wzFin(true)}
+    if(n===6)o.delai=+o.delai;
+    if(n===4&&o.siret&&o.siret.replace(/\s/g,'').length!==14){toast('Le SIRET compte 14 chiffres');return}
+    Object.assign(D.entreprise,o);enregistrer();go('#/bienvenue/'+(n+1))},
+  wzPasser(n){go('#/bienvenue/'+(n+1))},
+  wzMod(btn,m){document.getElementById('wzMod').value=m;document.querySelectorAll('.choice').forEach(c=>c.classList.remove('on'));btn.classList.add('on')},
+  wzFin(fini){D.onboarded=true;enregistrer();if(fini){confettis();toast('🎉 Votre entreprise est prête !')}go('#/accueil')},
+  modeleCgv(t){const el=$('#cgvTxt');const go_=()=>{el.value=modeleCgv(t);toast('Modèle ajouté : relisez les passages entre crochets')};if(el.value.trim())ask('Remplacer vos CGV ?','Le texte actuel sera remplacé par le modèle.','Remplacer').then(ok=>ok&&go_());else go_()},
+  pref(k,v){PREFS[k]=v;try{localStorage.setItem('kwik_prefs',JSON.stringify(PREFS))}catch(e){}appliquerApparence();route()},
+  basculer(t){ED._type=t;const del=num(D.entreprise.delai)||30;
+    if(t==='devis'){ED.validite=ED.validite||addDays(ED.date,30)}else{ED.dateExecution=ED.dateExecution||ED.date;ED.echeance=ED.echeance||addDays(ED.date,del)}
+    location.replace('#/'+t+'-edit/nouveau')},
   filtrer(cle){const el=$('#res');if(!el)return;el.innerHTML=cle==='devis'?contenuDevis():cle==='factures'?contenuFactures():contenuClients()},
   sauverClient(ev,id){const o=formData(ev);if(!o.nom)return;
     let c=id?parId(D.clients,id):null;if(c)Object.assign(c,o);else{c=Object.assign({id:uid()},o);D.clients.push(c)}
@@ -678,8 +896,8 @@ const App={
   sheetClients(){const l=D.clients.slice().sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));
     const liste=q=>{const f=filtreTexte(l,q);return f.length?`<div class="list">${f.map(c=>`<button class="item" onclick="App.choixClient('${c.id}')"><span class="av">${esc(initiales(c.nom))}</span><span class="grow"><span class="t" style="display:block">${esc(c.nom)}</span><span class="s" style="display:block">${c.type==='pro'?'Professionnel':'Particulier'}${c.ville?' · '+esc(c.ville):''}</span></span>${c.id===ED.clientId?svg('check'):''}</button>`).join('')}</div>`:`<p class="muted small">Aucun client trouvé.</p>`};
     App._listeClients=liste;
-    openSheet(`<h3>Client</h3>${l.length?`<div class="search">${svg('search')}<input type="search" placeholder="Rechercher" oninput="document.getElementById('sclist').innerHTML=App._listeClients(this.value)"></div><div id="sclist">${liste('')}</div>`:''}
-      <details ${l.length?'':'open'} class="card" style="box-shadow:none;border:1px solid var(--line)"><summary>+ Nouveau client</summary><form style="margin-top:12px" onsubmit="App.clientRapide(event)">${formClient({nom:'',type:'particulier'},'S')}<button class="btn primary block">Ajouter et choisir</button></form></details>`)},
+    openSheet(`<h3>Pour quel client ?</h3>${l.length?`<div class="search">${svg('search')}<input type="search" placeholder="Rechercher" oninput="document.getElementById('sclist').innerHTML=App._listeClients(this.value)"></div><div id="sclist">${liste('')}</div>`:''}
+      <details ${l.length?'':'open'} class="card" style="box-shadow:none;border:1px solid var(--line)"><summary style="color:var(--brand)">+ Nouveau client</summary><form style="margin-top:12px" onsubmit="App.clientRapide(event)">${formClient({nom:'',type:'particulier'},'S')}<button class="btn primary block">Ajouter et choisir</button></form></details>`)},
   choixClient(id){ED.clientId=id;$('#pick').innerHTML=pickerHtml();closeSheet()},
   clientRapide(ev){const o=formData(ev);if(!o.nom)return;const c=Object.assign({id:uid()},o);if(c.type!=='pro')c.siren='';D.clients.push(c);enregistrer();toast('Client ajouté');App.choixClient(c.id)},
   sheetCatalogue(){openSheet(`<h3>Ajouter depuis le catalogue</h3><div class="list">${D.produits.slice().sort((a,b)=>a.designation.localeCompare(b.designation,'fr')).map(p=>`<button class="item" onclick="App.ajProduit('${p.id}')"><span class="grow"><span class="t" style="display:block">${esc(p.designation)}</span><span class="s" style="display:block">${p.unite?'par '+esc(p.unite):''}</span></span><span class="amount">${eur(p.pu)}</span></button>`).join('')}</div>`)},
@@ -698,7 +916,7 @@ const App={
     if(!lignes.length){toast('Ajoutez au moins une ligne');return}
     if(lignes.some(l=>!String(l.designation).trim())){toast('Chaque ligne doit avoir une désignation');return}
     if(type==='facture'&&!entrepriseOk()&&!await ask('Fiche entreprise incomplète','Votre nom, SIRET ou adresse manque. Ils sont obligatoires sur une facture.','Enregistrer quand même'))return;
-    const doc=JSON.parse(JSON.stringify(ED));delete doc._type;delete doc._id;
+    const doc=JSON.parse(JSON.stringify(ED));delete doc._type;delete doc._id;delete doc._auto;
     doc.lignes=lignes.map(l=>({designation:String(l.designation).trim(),qte:num(l.qte),unite:l.unite||'',pu:r2(num(l.pu)),nature:l.nature==='vente'?'vente':'service'}));
     doc.client={nom:cl.nom,type:cl.type,siren:cl.siren,adresse:cl.adresse,cp:cl.cp,ville:cl.ville,email:cl.email};doc.maj=new Date().toISOString();
     if(!doc.id){doc.id=uid();doc.cree=doc.maj;doc.numero=prochainNumero(type,doc.date);
@@ -706,7 +924,7 @@ const App={
       liste.push(doc);
       if(type==='facture'&&doc.devisId){const dv=parId(D.devis,doc.devisId);if(dv){dv.statut='facture';dv.factureId=doc.id;dv.maj=doc.maj}}}
     else{const i=liste.findIndex(x=>x.id===doc.id);if(type==='facture')doc.emetteur=Object.assign({},D.entreprise);liste[i]=doc}
-    if(enregistrer()){ED=null;toast(type==='devis'?'Devis enregistré':'Facture enregistrée');go('#/voir/'+type+'/'+doc.id)}},
+    if(enregistrer()){ED=null;const premier=liste.length===1;toast(premier?(type==='devis'?'🎉 Votre premier devis !':'🎉 Votre première facture !'):(type==='devis'?'Devis enregistré':'Facture enregistrée'));if(premier)confettis();go('#/voir/'+type+'/'+doc.id)}},
   statutDevis(id,s){const d=parId(D.devis,id);d.statut=s;d.maj=new Date().toISOString();enregistrer();route()},
   devisVersFacture(id){const d=parId(D.devis,id);const t=today();
     ED={id:'',date:t,dateExecution:t,echeance:addDays(t,num(D.entreprise.delai)||30),clientId:d.clientId,lignes:JSON.parse(JSON.stringify(d.lignes)),notes:d.notes||'',devisId:d.id,_type:'facture',_id:'nouveau'};
@@ -730,7 +948,7 @@ const App={
     <label class="f">Payée le<input type="date" id="pDate" value="${today()}"></label>
     <div class="f"><span style="font-size:13.5px;font-weight:600;color:var(--muted)">Moyen de paiement</span><div class="chips" style="margin-top:8px;flex-wrap:wrap" id="pModes">${['virement','espèces','chèque','carte bancaire','autre'].map((m,i)=>`<button type="button" class="chip ${i===0?'on':''}" onclick="document.querySelectorAll('#pModes .chip').forEach(c=>c.classList.remove('on'));this.classList.add('on')">${m}</button>`).join('')}</div></div>
     <button class="btn hi block" onclick="App.payer('${id}')">${svg('check')} Confirmer l'encaissement</button>`)},
-  payer(id){const f=parId(D.factures,id);const date=$('#pDate').value||today();const m=document.querySelector('#pModes .chip.on');f.statut='payee';f.paiement={date,mode:m?m.textContent:'virement'};f.maj=new Date().toISOString();enregistrer();closeSheet();toast('Encaissement enregistré');route()},
+  payer(id){const f=parId(D.factures,id);const date=$('#pDate').value||today();const m=document.querySelector('#pModes .chip.on');f.statut='payee';f.paiement={date,mode:m?m.textContent:'virement'};f.maj=new Date().toISOString();enregistrer();closeSheet();toast('💶 '+eur(totalDoc(f))+' encaissés !');confettis();route()},
   async annulerPaiement(id){closeSheet();await new Promise(r=>setTimeout(r,260));if(!await ask("Annuler l'encaissement ?",'La facture repassera « à encaisser » et sortira du livre des recettes.','Annuler l’encaissement',true))return;const f=parId(D.factures,id);f.statut='emise';delete f.paiement;enregistrer();route()},
   async partager(type,id){const d=parId(type==='devis'?D.devis:D.factures,id);const txt=messageDoc(type,d);
     if(type==='devis'&&d.statut==='brouillon'){d.statut='envoye';d.maj=new Date().toISOString();enregistrer()}
@@ -741,14 +959,14 @@ const App={
     const ancien=document.title;const cl=(d.client&&d.client.nom||'').replace(/[^\w\- ]+/g,'').trim();document.title=(type==='devis'?'Devis ':'Facture ')+d.numero+(cl?' '+cl:'');
     const fin=()=>{document.title=ancien;window.removeEventListener('afterprint',fin)};window.addEventListener('afterprint',fin);
     setTimeout(()=>{try{window.print()}catch(e){toast('Impression impossible ici')}setTimeout(fin,4000)},50)},
-  sauverEntreprise(ev){const o=formData(ev);['tauxVente','tauxService','plafondVente','plafondService','tvaVente','tvaService'].forEach(k=>{D.params[k]=num(o[k])||PARAMS_DEFAUT[k];delete o[k]});o.delai=Math.max(0,Math.round(num(o.delai)));
+  sauverEntreprise(ev){const o=formData(ev);['tauxVente','tauxService','plafondVente','plafondService','tvaVente','tvaService'].forEach(k=>{D.params[k]=num(o[k])||PARAMS_DEFAUT[k];delete o[k]});o.delai=Math.max(0,Math.round(num(o.delai)));o.cgvDevis=!!o.cgvDevis;o.cgvFacture=!!o.cgvFacture;
     Object.assign(D.entreprise,o);enregistrer();toast('Fiche enregistrée');go('#/accueil')},
   paramsDefaut(){D.params=Object.assign({},PARAMS_DEFAUT);enregistrer();route();toast('Valeurs 2026 remises')},
-  logo(input){const f=input.files&&input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{
+  logo(input,wz){const f=input.files&&input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{
       const max=400;const k=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
       const x=c.getContext('2d');x.drawImage(img,0,0,c.width,c.height);D.entreprise.logo=c.toDataURL('image/png');
       if(D.entreprise.logo.length>300000){x.globalCompositeOperation='destination-over';x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);D.entreprise.logo=c.toDataURL('image/jpeg',.85)}
-      enregistrer();$('#logoPrev').innerHTML=`<img src="${D.entreprise.logo}" style="max-height:60px;max-width:160px"> <button type="button" class="btn sm ghost" onclick="App.retirerLogo()">Retirer</button>`;toast('Logo ajouté')};img.src=r.result};r.readAsDataURL(f)},
+      enregistrer();if(!wz)$('#logoPrev').innerHTML=`<img src="${D.entreprise.logo}" style="max-height:60px;max-width:160px"> <button type="button" class="btn sm ghost" onclick="App.retirerLogo()">Retirer</button>`;toast('Logo ajouté');if(wz){const a=$('#wzApercu');if(a)a.innerHTML=miniDoc()}};img.src=r.result};r.readAsDataURL(f)},
   retirerLogo(){D.entreprise.logo='';enregistrer();$('#logoPrev').innerHTML=''},
   csvRecettes(y){const rows=[['Date encaissement','N° facture','Client','Nature','Montant ventes','Montant services','Total','Moyen de paiement']];
     recettes(y).forEach(f=>{const p=partsDoc(f);rows.push([fdate(f.paiement.date),f.numero,f.client.nom,natureOperation(f),p.vente,p.service,totalDoc(f),f.paiement.mode])});telecharger('livre-des-recettes-'+y+'.csv',csv(rows),'text/csv')},
@@ -760,7 +978,9 @@ const App={
       delete d.app;delete d.version;D=fusion(d);enregistrer();toast('Sauvegarde restaurée');go('#/accueil')};r.readAsText(f)},
   async toutEffacer(){if(!await ask('Tout effacer ?','Toutes les données de ce téléphone seront supprimées.','Continuer',true))return;await new Promise(r=>setTimeout(r,260));if(!await ask('Vraiment tout effacer ?','Cette action est définitive.','Tout effacer',true))return;D=vide();enregistrer();toast('Données effacées');go('#/accueil')}
 };
+appliquerApparence();
 window.App=App;window.majTypeClient=majTypeClient;window.closeSheet=closeSheet;window.sheetMenu=sheetMenu;
+if(!D.onboarded&&!entrepriseOk()&&!D.factures.length&&!D.devis.length&&!/bienvenue/.test(location.hash))location.replace('#/bienvenue/1');
 route();
 if('serviceWorker' in navigator&&location.protocol==='https:'&&window.self===window.top){navigator.serviceWorker.register('sw.js').catch(()=>{})}
 </script>
