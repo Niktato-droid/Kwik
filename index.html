@@ -312,6 +312,8 @@ table.t .n{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums
   #print{display:block}
 }
 @media (min-width:700px){.quick{grid-template-columns:repeat(4,1fr)}}
+/* Ordinateur : l'en-tête et la barre du bas s'alignent sur la colonne centrale */
+@media (min-width:760px){.top{padding-left:calc(50% - 304px);padding-right:calc(50% - 304px)}.tabs{padding-left:calc(50% - 340px);padding-right:calc(50% - 340px)}}
 </style>
 </head>
 <body>
@@ -374,15 +376,40 @@ const svg=(k,cls='i')=>`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="tru
 
 /* ============ Données ============ */
 const KEY='kwik_v1';
-const PARAMS_DEFAUT={tauxVente:12.3,tauxService:21.2,plafondVente:203100,plafondService:83600,tvaVente:85000,tvaService:37500};
+/* Valeurs vérifiées le 25/11/2026 (urssaf.fr, service-public.fr, impots.gouv.fr, CMA) : valables aussi en 2027, sauf changement annoncé. */
+const TAUX_NUM=['tauxVente','tauxService','plafondVente','plafondService','tvaVente','tvaService'];
+const PARAMS_DEFAUT={tauxVente:12.3,tauxService:21.2,plafondVente:203100,plafondService:83600,tvaVente:85000,tvaService:37500,registre:'artisan',acre:false,vl:false};
 function vide(){return{
   entreprise:{prenomNom:'',nomCommercial:'',siret:'',debutActivite:'',adresse:'',cp:'',ville:'',email:'',tel:'',activite:'service',logo:'',iban:'',bic:'',delai:0,assurance:'',mentionLibre:'',metier:'',mediateurNom:'',mediateurSite:'',cgv:'',cgvDevis:true,cgvFacture:true},
-  clients:[],produits:[],devis:[],factures:[],avoirs:[],achats:[],compteurs:{},params:Object.assign({},PARAMS_DEFAUT),derniereSauvegarde:''}}
+  clients:[],produits:[],devis:[],factures:[],avoirs:[],achats:[],compteurs:{},params:Object.assign({},PARAMS_DEFAUT),derniereSauvegarde:'',blobs:{}}}
 function fusion(d){const v=vide();const out=Object.assign(v,d);out.entreprise=Object.assign(vide().entreprise,d.entreprise||{});out.params=Object.assign({},PARAMS_DEFAUT,d.params||{});return out}
 function charger(){try{const s=localStorage.getItem(KEY);if(s)return fusion(JSON.parse(s))}catch(e){}return vide()}
 let D=charger();
+/* Le logo et les CGV ne sont gardés qu'une fois : chaque facture n'en garde qu'un renvoi « @clé ».
+   Avant, chaque facture recopiait le logo : le téléphone était plein après quelques dizaines de factures. */
+function stocker(v){if(typeof v!=='string'||v.length<1500)return v;D.blobs=D.blobs||{};let h=2166136261;for(let i=0;i<v.length;i++){h^=v.charCodeAt(i);h=Math.imul(h,16777619)}
+  let k='b'+(h>>>0).toString(36)+v.length.toString(36);while(D.blobs[k]!==undefined&&D.blobs[k]!==v)k+='x';D.blobs[k]=v;return '@'+k}
+const relire=v=>typeof v==='string'&&v[0]==='@'&&D.blobs&&D.blobs[v.slice(1)]!==undefined?D.blobs[v.slice(1)]:v;
+const figerEmetteur=()=>{const e=Object.assign({},D.entreprise);e.logo=stocker(e.logo);e.cgv=stocker(e.cgv);return e};
+function compacter(){const avant=JSON.stringify([D.blobs,D.factures,D.avoirs]).length;D.blobs=D.blobs||{};const docs=[...D.factures,...(D.avoirs||[])];
+  docs.forEach(x=>{if(x.emetteur){x.emetteur.logo=stocker(x.emetteur.logo);x.emetteur.cgv=stocker(x.emetteur.cgv)}});
+  const utiles=new Set();docs.forEach(x=>{if(x.emetteur)['logo','cgv'].forEach(c=>{const v=x.emetteur[c];if(typeof v==='string'&&v[0]==='@')utiles.add(v.slice(1))})});
+  Object.keys(D.blobs).forEach(k=>{if(!utiles.has(k))delete D.blobs[k]});
+  return JSON.stringify([D.blobs,D.factures,D.avoirs]).length!==avant}
+if(compacter())enregistrer();
 function enregistrer(){try{localStorage.setItem(KEY,JSON.stringify(D));return true}catch(e){info("Enregistrement impossible","Ce téléphone refuse d'enregistrer (mémoire pleine ou navigation privée). Exportez une sauvegarde depuis le menu.");return false}}
 const parId=(arr,id)=>arr.find(x=>x.id===id);
+/* Ce que l'URSSAF prélève, en % de l'encaissé : cotisations (ACRE : 25 % de moins au début), formation professionnelle,
+   taxe de chambre (métiers ou commerce, plus chère en Alsace-Moselle) et impôt si versement libératoire. */
+function acreFin(){const e=D.entreprise;if(!D.params.acre||!e.debutActivite)return '';const y=+e.debutActivite.slice(0,4),m=+e.debutActivite.slice(5,7);
+  return addDays(moisDebut(y,Math.floor((m-1)/3)*3+13),-1)}
+function tauxChambre(nature){const art=D.params.registre!=='commercant';const v=nature==='vente';const cp=String(D.entreprise.cp||'').trim();
+  if(!art)return v?.015:.044;if(/^6[78]/.test(cp))return v?.29:.65;if(/^57/.test(cp))return v?.37:.83;return v?.22:.48}
+const tauxCfp=()=>D.params.registre==='commercant'?.1:.3;
+function tauxURSSAF(nature,date){const p=D.params;let t=nature==='vente'?p.tauxVente:p.tauxService;const fin=acreFin();if(fin&&(date||today())<=fin)t*=.75;
+  return t+tauxCfp()+tauxChambre(nature)+(p.vl?(nature==='vente'?1:1.7):0)}
+const pc=n=>dec(r2(n));
+const detailTaux=()=>'cotisations, formation, '+(D.params.registre==='commercant'?'CCI':'chambre de métiers')+(D.params.vl?', impôt':'')+(acreFin()&&today()<=acreFin()?', avec l’ACRE':'');
 function prochainNumero(type,dateIso){const y=(dateIso||today()).slice(0,4);const k=type+y;const n=(D.compteurs[k]||0)+1;D.compteurs[k]=n;return (type==='facture'?'F':type==='avoir'?'A':'D')+y+'-'+String(n).padStart(type==='devis'?3:4,'0')}
 const totalDoc=doc=>r2((doc.lignes||[]).reduce((s,l)=>s+num(l.qte)*num(l.pu),0));
 function partsLigne(l){const q=num(l.qte),pu=num(l.pu);if(l.nature==='mixte'){const f=Math.min(pu,Math.max(0,num(l.fourn)));return{vente:q*f,service:q*(pu-f)}}return l.nature==='vente'?{vente:q*pu,service:0}:{vente:0,service:q*pu}}
@@ -397,11 +424,11 @@ function badgeDevis(d){const s=STATUTS_DEVIS[d.statut]||STATUTS_DEVIS.brouillon;
 const delaiJ=()=>{const v=D.entreprise.delai;return v===''||v==null||!isFinite(num(v))?30:Math.max(0,Math.round(num(v)))};
 const entrepriseOk=()=>!!(D.entreprise.prenomNom&&D.entreprise.siret&&D.entreprise.adresse);
 const prenom=()=>String(D.entreprise.prenomNom||'').trim().split(/\s+/)[0]||'';
-function encaisse(de,a){const r={vente:0,service:0,nb:0};
-  D.factures.forEach(f=>{if(f.statut==='payee'&&f.paiement&&f.paiement.date>=de&&f.paiement.date<=a){const p=partsDoc(f);r.vente+=p.vente;r.service+=p.service;r.nb++}});
-  (D.avoirs||[]).forEach(v=>{if(v.statut==='rembourse'&&v.paiement&&v.paiement.date>=de&&v.paiement.date<=a){const p=partsDoc(v);r.vente-=p.vente;r.service-=p.service}});
-  r.vente=r2(r.vente);r.service=r2(r.service);r.total=r2(r.vente+r.service);
-  r.cotis=r2(r.vente*D.params.tauxVente/100+r.service*D.params.tauxService/100);return r}
+function encaisse(de,a){const r={vente:0,service:0,nb:0,cotis:0};
+  const ajoute=(doc,date,s)=>{const p=partsDoc(doc);r.vente+=s*p.vente;r.service+=s*p.service;r.cotis+=s*(p.vente*tauxURSSAF('vente',date)+p.service*tauxURSSAF('service',date))/100};
+  D.factures.forEach(f=>{if(f.statut==='payee'&&f.paiement&&f.paiement.date>=de&&f.paiement.date<=a){ajoute(f,f.paiement.date,1);r.nb++}});
+  (D.avoirs||[]).forEach(v=>{if(v.statut==='rembourse'&&v.paiement&&v.paiement.date>=de&&v.paiement.date<=a)ajoute(v,v.paiement.date,-1)});
+  r.vente=r2(r.vente);r.service=r2(r.service);r.total=r2(r.vente+r.service);r.cotis=r2(r.cotis);return r}
 
 /* ============ Feuille, confirmation ============ */
 let sheetResolve=null;
@@ -419,7 +446,7 @@ function sheetCreer(){openSheet(`<h3>Créer</h3><div class="list">
   </div>`)}
 $('#fab').onclick=()=>{ED=null;if(location.hash==='#/devis-edit/nouveau')route();else go('#/devis-edit/nouveau')};
 function sheetMenu(){const it=(h,ic,t,s)=>`<a class="item" href="${h}" onclick="closeSheet()"><span class="av">${svg(ic)}</span><span class="grow"><span class="t" style="display:block">${t}</span><span class="s" style="display:block">${s}</span></span>${svg('chev','i chev')}</a>`;
-  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos articles et leurs prix')}${it('#/urssaf','euro','Déclarer à l’URSSAF','Les montants à recopier, pas à pas')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/apparence','edit','Apparence','Couleurs, taille du texte, mode sombre')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.8 · vos données restent sur ce téléphone</p>`)}
+  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos articles et leurs prix')}${it('#/urssaf','euro','Déclarer à l’URSSAF','Les montants à recopier, pas à pas')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/apparence','edit','Apparence','Couleurs, taille du texte, mode sombre')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.9 · vos données restent sur ce téléphone</p>`)}
 
 /* ============ Routeur ============ */
 let ED=null,RETOUR_CLIENT=null,AFTER=null;
@@ -462,10 +489,10 @@ function vAccueil(){
     <div class="months" aria-hidden="true">${parMois.map((v,i)=>`<div class="${i===m-1?'on':''}"><i style="height:${Math.max(4,Math.round(v/maxM*46))}px"></i><span>${'JFMAMJJASOND'[i]}</span></div>`).join('')}</div>
     <div class="split" style="margin-top:12px"><div class="mark"><b>${eur(totAEnc)}</b><span>À encaisser</span></div><div><b>${eur(mois.total)}</b><span>En ${MOIS[m-1]}</span></div></div></div>`;
   const trim=encaisse(P[2].de,P[2].a);
-  if(an.total>0)h+=`<div class="card aside"><span class="em">🐷</span><span style="flex:1;min-width:0"><span class="small muted" style="display:flex;align-items:center">À mettre de côté pour l'URSSAF (ce trimestre)${bulle('urssaf')}</span><b class="big">${eur(trim.cotis)}</b><span class="small muted">Environ ${dec(D.params.tauxVente)} % de vos ventes et ${dec(D.params.tauxService)} % de vos services encaissés.</span></span></div>`;
+  if(an.total>0)h+=`<div class="card aside"><span class="em">🐷</span><span style="flex:1;min-width:0"><span class="small muted" style="display:flex;align-items:center">À mettre de côté pour l'URSSAF (ce trimestre)${bulle('urssaf')}</span><b class="big">${eur(trim.cotis)}</b><span class="small muted">Environ ${pc(tauxURSSAF('vente'))} % de vos ventes et ${pc(tauxURSSAF('service'))} % de vos services encaissés (${detailTaux()}).</span></span></div>`;
   h+=`<details class="card" open><summary>Mes chiffres pour l'URSSAF ${bulle('urssaf')}</summary><a class="btn primary block" href="#/urssaf" style="margin-top:12px">Déclarer pas à pas</a><div class="scroll"><table class="t"><thead><tr><th>Période</th><th class="n">Ventes</th><th class="n">Services</th><th class="n">Cotisations*</th></tr></thead><tbody>`+
     P.map(p=>{const e=encaisse(p.de,p.a);return `<tr><td>${p.lib}</td><td class="n">${eur(e.vente)}</td><td class="n">${eur(e.service)}</td><td class="n">${eur(e.cotis)}</td></tr>`}).join('')+
-    `</tbody></table></div><p class="small muted">* Estimation sur les sommes encaissées, avec ${dec(D.params.tauxVente)} % pour les ventes et ${dec(D.params.tauxService)} % pour les services. Les deux se déclarent sur des lignes séparées. Hors versement libératoire et contribution à la formation.</p></details>`;
+    `</tbody></table></div><p class="small muted">* Estimation de ce que l'URSSAF prélèvera sur les sommes encaissées : ${pc(tauxURSSAF('vente'))} % des ventes et ${pc(tauxURSSAF('service'))} % des services (${detailTaux()}). Les ventes et les services se déclarent sur des lignes séparées.</p></details>`;
   h+=`<div class="quick"><a href="#/devis-edit/nouveau"><span class="ic">${svg('devis')}</span>Devis</a><a href="#/facture-edit/nouveau"><span class="ic">${svg('facture')}</span>Facture</a><a href="#/client-edit/nouveau"><span class="ic">${svg('client')}</span>Client</a><a href="#/achat-edit/nouveau"><span class="ic">${svg('achat')}</span>Achat</a></div>`;
   // À faire
   const todos=[];
@@ -484,12 +511,15 @@ function vAccueil(){
   if(recents.length)h+=`<h2>Récemment</h2><div class="list">${recents.map(([ty,d])=>ligneDoc(ty,d,true)).join('')}</div>`;
   // URSSAF
 
+  // L'année du début d'activité, les plafonds sont réduits au prorata des jours d'activité.
+  const deb=D.entreprise.debutActivite;const k=deb&&deb.slice(0,4)===y&&deb>y+'-01-01'?(daysBetween(deb,y+'-12-31')+1)/(daysBetween(y+'-01-01',y+'-12-31')+1):1;
+  const pl=v=>Math.round(v*k);
   h+=`<details class="card"><summary>Mes plafonds ${y}</summary><div style="margin-top:12px">`+
-    barre('Plafond micro (total : '+eur(D.params.plafondVente)+')',an.total,D.params.plafondVente)+
-    barre('Plafond micro (services : '+eur(D.params.plafondService)+')',an.service,D.params.plafondService)+
-    barre('Franchise de TVA (total : '+eur(D.params.tvaVente)+')',an.total,D.params.tvaVente)+
-    barre('Franchise de TVA (services : '+eur(D.params.tvaService)+')',an.service,D.params.tvaService)+
-    `<p class="small muted" style="margin:0">Calculé sur l'encaissé de l'année. Au-delà de la franchise, la TVA devient due.</p></div></details>`;
+    barre('Plafond micro (total : '+eur(pl(D.params.plafondVente))+')',an.total,pl(D.params.plafondVente))+
+    barre('Plafond micro (services : '+eur(pl(D.params.plafondService))+')',an.service,pl(D.params.plafondService))+
+    barre('Franchise de TVA (total : '+eur(pl(D.params.tvaVente))+')',an.total,pl(D.params.tvaVente))+
+    barre('Franchise de TVA (services : '+eur(pl(D.params.tvaService))+')',an.service,pl(D.params.tvaService))+
+    `<p class="small muted" style="margin:0">Calculé sur l'encaissé de l'année${k<1?`, avec des plafonds réduits car vous avez commencé le ${fdate(deb)}`:''}. Au-delà de la franchise, la TVA sera due à partir du 1er janvier suivant. Au-delà de ${eur(pl(D.params.tvaVente*1.1))} (ou ${eur(pl(D.params.tvaService*1.1))} de services), elle est due tout de suite : parlez-en vite à votre conseiller ou au service des impôts.</p></div></details>`;
   return h}
 
 /* ============ Listes ============ */
@@ -602,7 +632,7 @@ function pickerHtml(){const c=parId(D.clients,ED.clientId);
   return c?`<button class="picker set" onclick="App.sheetClients()"><span class="av" style="width:40px;height:40px;border-radius:12px;background:var(--brand-soft);color:var(--brand);display:flex;align-items:center;justify-content:center;font:700 15px var(--font-d)">${esc(initiales(c.nom))}</span><span class="grow"><b style="display:block">${esc(c.nom)}</b><span class="small muted">${c.type==='pro'?'Professionnel':'Particulier'}${c.ville?' · '+esc(c.ville):''}</span></span><span class="small" style="color:var(--brand);font-weight:600">Changer</span></button>`
    :`<button class="picker" onclick="App.sheetClients()"><span class="grow"><b style="color:var(--brand);display:block">Choisir un client</b><span class="small muted">Dans votre liste, ou en ajouter un nouveau</span></span></button>`}
 function lignesHtml(){return ED.lignes.map((l,i)=>`<div class="ligne">
-  <div style="display:flex;gap:8px;align-items:flex-start"><input class="des" placeholder="Ex. : pose de carrelage" value="${esc(l.designation)}" oninput="ED.lignes[${i}].designation=this.value" aria-label="Désignation">${ED.lignes.length>1?`<button class="x" onclick="App.supLigne(${i})" aria-label="Retirer la ligne">${svg('trash')}</button>`:''}</div>
+  <div style="display:flex;gap:8px;align-items:flex-start"><input class="des" placeholder="${vocab()===VOCAB.btp?'Ex. : pose de carrelage':'Ex. : bol émaillé bleu'}" value="${esc(l.designation)}" oninput="ED.lignes[${i}].designation=this.value" aria-label="Désignation">${ED.lignes.length>1?`<button class="x" onclick="App.supLigne(${i})" aria-label="Retirer la ligne">${svg('trash')}</button>`:''}</div>
   <div class="row">
     <div><span class="lab">Quantité</span><div class="stepper"><button type="button" onclick="App.pas(${i},-1)" aria-label="Moins">−</button><input id="q${i}" inputmode="decimal" value="${esc(dec(l.qte))}" oninput="ED.lignes[${i}].qte=this.value;App.majTotaux()" aria-label="Quantité"><button type="button" onclick="App.pas(${i},1)" aria-label="Plus">+</button></div></div>
     <div class="un"><span class="lab">Unité</span><input class="mini" value="${esc(l.unite)}" placeholder="h, m², u" oninput="ED.lignes[${i}].unite=this.value" aria-label="Unité"></div>
@@ -616,7 +646,7 @@ function lignesHtml(){return ED.lignes.map((l,i)=>`<div class="ligne">
 /* ============ Avoirs ============ */
 /* Un avoir annule une facture entière. Payée : il faudra rembourser. Pas payée : plus rien n'est dû. */
 function creerAvoir(f){const t=today();const a={id:uid(),numero:prochainNumero('avoir',t),date:t,factureId:f.id,factureNumero:f.numero,factureDate:f.date,clientId:f.clientId,
-    client:JSON.parse(JSON.stringify(f.client||{})),lignes:JSON.parse(JSON.stringify(f.lignes||[])),notes:'',emetteur:Object.assign({},D.entreprise),statut:f.statut==='payee'?'a_rembourser':'solde'};
+    client:JSON.parse(JSON.stringify(f.client||{})),lignes:JSON.parse(JSON.stringify(f.lignes||[])),notes:'',emetteur:figerEmetteur(),statut:f.statut==='payee'?'a_rembourser':'solde'};
   a.cree=a.maj=new Date().toISOString();D.avoirs=D.avoirs||[];D.avoirs.push(a);f.annulee={id:a.id,numero:a.numero,date:t};f.maj=a.maj;return a}
 
 /* ============ Vérifications avant envoi ============ */
@@ -640,14 +670,18 @@ function alerteVerifs(v){return `<a class="alert" href="#/entreprise" style="dis
 
 /* ============ Aperçu document ============ */
 const titreDoc=t=>t==='facture'?'FACTURE':t==='avoir'?'AVOIR':'DEVIS';
-const emetteurDoc=(type,d)=>(type!=='devis'&&d.emetteur)||D.entreprise;
+const emetteurDoc=(type,d)=>{if(type!=='devis'&&d.emetteur){const e=Object.assign({},d.emetteur);e.logo=relire(e.logo);e.cgv=relire(e.cgv);return e}return D.entreprise};
+/* La mention de TVA change d'article le 1er janvier 2027 (transfert du CGI vers le Code des impositions sur les biens et services). */
+const mentionTVA=date=>(date||today())>='2027-01-01'?'TVA non applicable, art. L. 233-3 du CIBS':'TVA non applicable, art. 293 B du CGI';
 /* Les mentions de bas de page, en texte simple : utilisées par l'aperçu et par le PDF. */
 function mentionsDoc(type,d){const e=emetteurDoc(type,d);const c=d.client||{};const pro=c.type==='pro';const m=[];
   if(type==='avoir'){m.push(`Cet avoir annule la facture n° ${d.factureNumero} du ${fdate(d.factureDate)}.`);
     m.push(d.statut==='solde'?"Cette facture n'avait pas été payée : plus rien n'est dû.":d.statut==='rembourse'&&d.paiement?`Montant remboursé au client le ${fdate(d.paiement.date)} par ${d.paiement.mode}.`:'Ce montant sera remboursé au client.')}
   else if(type==='facture'){m.push((d.echeance&&d.echeance>d.date?`Paiement au plus tard le ${fdate(d.echeance)}.`:'Paiement à réception de la facture.')+(e.iban?` Par virement : IBAN ${e.iban}${e.bic?' · BIC '+e.bic:''}.`:''));
     m.push("Pas d'escompte pour paiement anticipé. En cas de retard de paiement, des pénalités au taux de trois fois le taux d'intérêt légal sont exigibles."+(pro?' Indemnité forfaitaire pour frais de recouvrement : 40 €.':''));
-    if(d.statut==='payee'&&d.paiement)m.push(`Facture acquittée le ${fdate(d.paiement.date)} par ${d.paiement.mode}.`)}
+    if(d.statut==='payee'&&d.paiement)m.push(`Facture acquittée le ${fdate(d.paiement.date)} par ${d.paiement.mode}.`);
+    /* Ajoutée à partir de la version 0.9 : les factures plus anciennes restent telles qu'elles ont été envoyées. */
+    if(!pro&&partsDoc(d).vente>0&&d.date>='2026-11-25')m.push('Garantie légale de conformité : 2 ans à compter de la remise du bien (articles L217-3 et suivants du Code de la consommation).')}
   else m.push(`Devis gratuit, valable jusqu'au ${fdate(d.validite)}.`+(delaiJ()>0?` Paiement à ${delaiJ()} jours après facturation.`:' Paiement à réception de la facture.'));
   if(e.assurance)m.push('Assurance professionnelle : '+e.assurance);
   if(e.mentionLibre)m.push(e.mentionLibre);
@@ -668,7 +702,7 @@ function docHtml(type,d){
   ${lignes.map(l=>`<tr><td>${nl(l.designation)}${(l.nature==='mixte'||plusieurs)?`<div style="font-size:10.5px;color:#666">${V[l.nature||'service'][1]}</div>`:''}</td><td class="n">${dec(num(l.qte))}</td><td>${esc(l.unite)}</td><td class="n">${eur(num(l.pu))}</td><td class="n">${eur(num(l.qte)*num(l.pu))}</td></tr>`).join('')}
   </tbody></table>
   <div class="tot">${pts.vente&&pts.service?`<div style="color:#555;font-size:11.5px"><span>${V.dv}</span><span>${eur(pts.vente)}</span></div><div style="color:#555;font-size:11.5px"><span>${V.ds}</span><span>${eur(pts.service)}</span></div>`:''}<div><span>Total HT</span><span>${eur(totalDoc(d))}</span></div><div class="big"><span>${libTotalDoc(type)}</span><span>${eur(totalDoc(d))}</span></div></div>
-  <p style="font-size:11.5px;margin-top:6px"><b>TVA non applicable, art. 293 B du CGI</b></p>
+  <p style="font-size:11.5px;margin-top:6px"><b>${mentionTVA(d.date)}</b></p>
   ${d.notes?`<p style="margin-top:12px">${nl(d.notes)}</p>`:''}
   <div class="mentions">${mentionsDoc(type,d).map(x=>`<p>${nl(x)}</p>`).join('')}</div>
   ${type==='devis'?`<div class="sign"><div>Bon pour accord, date et signature du client${cgvJointes(e,type)?', précédés de la mention « Lu et approuvé, CGV acceptées »':''} :</div></div>`:''}
@@ -820,7 +854,7 @@ function pdfDocument(type,d){
   tl.forEach(t=>{y+=15;P.texte(tx+6,y,t[0],t[2]);P.texte(R-6,y,t[1],Object.assign({align:'right'},t[2]))});
   y+=8;P.trait(tx,y,R,y,{couleur:[.07,.07,.07],ep:1.5});y+=17;
   P.texte(tx+6,y,libTotalDoc(type),{gras:1,taille:11.5});P.texte(R-6,y,eur(totalDoc(d)),{gras:1,taille:11.5,align:'right'});
-  y+=8;ecrire(['TVA non applicable, art. 293 B du CGI'],{gras:1,taille:8.5},14);
+  y+=8;ecrire([mentionTVA(d.date)],{gras:1,taille:8.5},14);
   if(d.notes){y+=6;ecrire(couper(d.notes,0,9.5,CW),{},12.5)}
   // Les mentions
   if(y+30>BAS)page();
@@ -847,7 +881,7 @@ function pdfDocument(type,d){
   return P.fichier(nomFichier(type,d))}
 function telechargerFichier(f){const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000)}
 /* Une facture qui « sort » de Kwik (PDF, envoi, impression) est verrouillée. Juste avant, on reprend la fiche entreprise à jour. */
-function avantSortie(type,d){if(type==='facture'&&!d.envoyee&&d.statut!=='payee'&&!d.annulee)d.emetteur=Object.assign({},D.entreprise)}
+function avantSortie(type,d){if(type==='facture'&&!d.envoyee&&d.statut!=='payee'&&!d.annulee)d.emetteur=figerEmetteur()}
 function marquerEnvoye(type,d,viaPdf){let ch=false;if(type==='facture'&&!d.envoyee){d.envoyee=today();ch=true}if(type==='devis'&&!viaPdf&&d.statut==='brouillon'){d.statut='envoye';ch=true}if(ch){d.maj=new Date().toISOString();enregistrer()}}
 async function fichierPdf(type,d){avantSortie(type,d);const e=emetteurDoc(type,d);if(e.logo&&!LOGOS[e.logo])await prepLogo(e.logo);
   return new File([pdfDocument(type,d)],nomFichier(type,d)+'.pdf',{type:'application/pdf'})}
@@ -872,7 +906,7 @@ function vUrssaf(){titre('Déclarer à l\'URSSAF','#/accueil','');const P=period
   let h=`<div class="f" style="margin-bottom:16px"><span style="font-size:13.5px;font-weight:600;color:var(--muted)">Je déclare…</span><div class="seg">${[['mensuelle','Chaque mois'],['trimestrielle','Chaque trimestre']].map(([k,l])=>`<label><input type="radio" name="per" ${(D.params.periodicite||'trimestrielle')===k?'checked':''} onchange="App.periodicite('${k}')"><span>${l}</span></label>`).join('')}</div></div>`;
   if(!D.entreprise.debutActivite)h+=`<div class="alert info">Indiquez votre date de début d'activité dans <a href="#/entreprise">Mon entreprise</a> : Kwik saura quand tombe votre première déclaration.</div>`;
   if(cible){const retard=cible.limite<today();
-    h+=`<div class="hero" style="margin-top:0"><div class="l">À déclarer maintenant</div><div class="v" style="font-size:28px">${cible.lib}</div><div class="split"><div class="mark"><b>${fdate(cible.limite)}</b><span>${retard?'Date limite dépassée':'Date limite'}</span></div><div><b>${eur(cible.cotis)}</b><span>Cotisations estimées</span></div></div></div>
+    h+=`<div class="hero" style="margin-top:0"><div class="l">À déclarer maintenant</div><div class="v" style="font-size:28px">${cible.lib}</div><div class="split"><div class="mark"><b>${fdate(cible.limite)}</b><span>${retard?'Date limite dépassée':'Date limite'}</span></div><div><b>${eur(cible.cotis)}</b><span>À payer (estimation)</span></div></div></div>
     ${cible.premiere?`<p class="small muted">C'est votre première déclaration : elle regroupe le début de votre activité et ${(D.params.periodicite||'trimestrielle')==='mensuelle'?'les 3 mois suivants':'le trimestre suivant'}. Vérifiez la date limite sur votre espace URSSAF.</p>`:''}
     <h2>1. Ouvrez votre espace URSSAF</h2><a class="btn primary block" href="https://www.autoentrepreneur.urssaf.fr/" target="_blank" rel="noopener">Aller sur autoentrepreneur.urssaf.fr</a>
     <p class="small muted">Connectez-vous, puis choisissez « Déclarer et payer ».</p>
@@ -880,7 +914,7 @@ function vUrssaf(){titre('Déclarer à l\'URSSAF','#/accueil','');const P=period
     ${ligneCase('Ventes de marchandises (BIC)',cible.vente,'Vos objets vendus et vos fournitures.')}
     ${ligneCase('Prestations de services commerciales et artisanales (BIC)',cible.service,'Votre main-d\'œuvre, vos ateliers, vos réparations.')}
     <p class="small muted">Les montants sont arrondis à l'euro, comme le demande l'URSSAF. Si une case vaut 0, indiquez 0 : il faut déclarer même quand on n'a rien encaissé.</p>
-    <h2>3. Validez et payez</h2><p class="small muted" style="margin-top:-4px">L'URSSAF calcule vos cotisations (environ ${eur(cible.cotis)}) et vous propose de payer.</p>
+    <h2>3. Validez et payez</h2><p class="small muted" style="margin-top:-4px">L'URSSAF calcule ce que vous devez (environ ${eur(cible.cotis)} : ${detailTaux()}) et vous propose de payer.</p>
     <button class="btn hi block" onclick="App.declare('${cible.cle}')">${svg('check')} J'ai déclaré ${cible.lib}</button>`}
   else h+=`<div class="card aside"><span class="em">✅</span><span><b>Vous êtes à jour</b><br><span class="small muted">${cur?`${cur.premiere?'Votre première déclaration':'Prochaine déclaration'} : ${cur.lib.replace(/^Du/,'du')}, avant le ${fdate(cur.limite)}.`:'Rien à déclarer pour l’instant.'}</span></span></div>`;
   h+=`<h2>Historique</h2><div class="list">${P.map(o=>`<div class="item"><span class="grow"><span class="t" style="display:block">${o.lib}</span><span class="s" style="display:block">Ventes ${Math.round(o.vente)} € · Services ${Math.round(o.service)} €</span></span><span class="end">${o.enCours?'<span class="badge grey">En cours</span>':o.fait?`<span class="badge ok">Déclaré</span>`:`<span class="badge ${o.limite<today()?'bad':'warn'}">Avant le ${fdate(o.limite).slice(0,5)}</span>`}${o.fait?`<button class="btn sm ghost" style="min-height:28px;padding:2px 8px;font-size:12px" onclick="App.declare('${o.cle}',true)">Annuler</button>`:''}</span></div>`).join('')}</div>
@@ -941,9 +975,16 @@ function vEntreprise(){titre('Mon entreprise','#/accueil','');const e=D.entrepri
   <label class="f">IBAN<input name="iban" value="${esc(e.iban)}" placeholder="Pour être payé par virement"></label>
   <label class="f" style="margin:0">BIC<input name="bic" value="${esc(e.bic)}"></label>
   </div>
+  <h2>Mes cotisations ${bulle('urssaf')}</h2><div class="card">
+  <div class="f" style="margin-bottom:14px"><span style="font-size:13.5px;font-weight:600;color:var(--muted)">Je suis inscrit·e comme</span><div class="seg"><label><input type="radio" name="registre" value="artisan" ${p.registre!=='commercant'?'checked':''}><span>Artisan (chambre de métiers)</span></label><label><input type="radio" name="registre" value="commercant" ${p.registre==='commercant'?'checked':''}><span>Commerçant (CCI)</span></label></div></div>
+  <label class="check"><input type="checkbox" name="acre" ${p.acre?'checked':''}> J'ai l'ACRE (aide à la création)</label>
+  <p class="hint" style="margin-top:0">Cotisations réduites de 25 % jusqu'à la fin du 3e trimestre qui suit votre début d'activité${acreFin()?` : jusqu'au ${fdate(acreFin())}`:p.acre?'. Indiquez votre date de début d’activité plus haut.':''}.</p>
+  <label class="check"><input type="checkbox" name="vl" ${p.vl?'checked':''}> J'ai choisi le versement libératoire de l'impôt</label>
+  <p class="hint" style="margin:0">Votre impôt sur le revenu est alors payé à l'URSSAF en même temps : 1 % des ventes, 1,7 % des services.</p>
+  </div>
   <h2>Mentions</h2><div class="card">
   <label class="f">Assurance professionnelle<textarea name="assurance" placeholder="Obligatoire pour les artisans du bâtiment (décennale) : assureur, n° de contrat, zone couverte">${esc(e.assurance)}</textarea></label>
-  <label class="f" style="margin:0">Autre mention en bas de page<textarea name="mentionLibre" placeholder="Ex. : Dispensé d'immatriculation au RCS et au RM">${esc(e.mentionLibre)}</textarea></label>
+  <label class="f" style="margin:0">Autre mention en bas de page<textarea name="mentionLibre" placeholder="Ex. : Artisan inscrit au registre national des entreprises (RNE)">${esc(e.mentionLibre)}</textarea></label>
   </div>
   <h2>Conditions générales de vente ${bulle('cgv')}</h2><div class="card">
   <p class="hint" style="margin:0 0 12px">Les CGV expliquent vos règles (paiement, livraison, retours, garanties). Elles s'impriment en page 2 de vos documents.</p>
@@ -956,11 +997,11 @@ function vEntreprise(){titre('Mon entreprise','#/accueil','');const e=D.entrepri
   </div>
   <a class="btn ghost block" href="#/bienvenue/1" style="margin-bottom:12px">Refaire l'assistant de démarrage</a>
   <details class="card"><summary>Taux et plafonds</summary><div style="margin-top:12px">
-  <p class="hint" style="margin:0 0 12px">Valeurs 2026 pour les micro-entrepreneurs. Modifiez-les si elles changent.</p>
+  <p class="hint" style="margin:0 0 12px">Valeurs officielles vérifiées le 25/11/2026, valables en 2026 et 2027 (les plafonds sont fixés jusqu'en 2028). Kwik y ajoute tout seul la formation professionnelle (${pc(tauxCfp())} %) et la taxe de ${p.registre==='commercant'?'CCI':'chambre de métiers'} (${pc(tauxChambre('vente'))} % des ventes, ${pc(tauxChambre('service'))} % des services).</p>
   <div class="grid2"><label class="f">Cotisations ventes (%)<input name="tauxVente" inputmode="decimal" value="${dec(p.tauxVente)}"></label><label class="f">Cotisations services (%)<input name="tauxService" inputmode="decimal" value="${dec(p.tauxService)}"></label>
   <label class="f">Plafond total (€)<input name="plafondVente" inputmode="numeric" value="${p.plafondVente}"></label><label class="f">Plafond services (€)<input name="plafondService" inputmode="numeric" value="${p.plafondService}"></label>
   <label class="f">Franchise TVA total (€)<input name="tvaVente" inputmode="numeric" value="${p.tvaVente}"></label><label class="f">Franchise TVA services (€)<input name="tvaService" inputmode="numeric" value="${p.tvaService}"></label></div>
-  <button type="button" class="btn sm ghost" onclick="App.paramsDefaut()">Remettre les valeurs 2026</button>
+  <button type="button" class="btn sm ghost" onclick="App.paramsDefaut()">Remettre les valeurs officielles</button>
   </div></details>
   <button class="btn primary block" style="margin-top:6px">Enregistrer</button>
   </form>`}
@@ -980,14 +1021,17 @@ function vSauvegarde(){titre('Sauvegarde','#/accueil','');const ds=D.derniereSau
 function vAide(){titre('Installer et aide','#/accueil','');
   return `<div class="card"><h2 style="margin-top:0">Mettre Kwik sur l'écran d'accueil</h2>
   <p><b>Android (Chrome)</b> : menu ⋮ en haut à droite, puis « Installer l'application » ou « Ajouter à l'écran d'accueil ».</p>
-  <p><b>iPhone (Safari)</b> : bouton Partager (carré avec une flèche), puis « Sur l'écran d'accueil ».</p>
-  <p class="small muted" style="margin-bottom:0">Ensuite Kwik s'ouvre comme les autres applis, même sans internet.</p></div>
+  <p><b>iPhone et iPad (Safari)</b> : bouton Partager (carré avec une flèche), puis « Sur l'écran d'accueil ».</p>
+  <p><b>Ordinateur (Chrome ou Edge)</b> : icône d'installation à droite de la barre d'adresse, ou menu, puis « Installer Kwik ».</p>
+  <p class="small muted">Ensuite Kwik s'ouvre comme les autres applis, même sans internet.</p>
+  <p class="small muted" style="margin-bottom:0">Important sur iPhone et iPad : installez Kwik avant de le remplir. L'appli de l'écran d'accueil ne voit pas ce que vous avez saisi dans Safari. Pour passer d'un appareil à un autre : Sauvegarde, Exporter, puis Restaurer sur le nouvel appareil.</p></div>
   <div class="card"><h2 style="margin-top:0">Envoyer un PDF</h2><p>Sur un devis ou une facture, touchez « Envoyer » : Kwik crée le PDF et l'attache à un message tout prêt. Choisissez ensuite Mail, WhatsApp ou SMS.</p><p style="margin-bottom:0">« PDF » crée seulement le fichier, pour l'enregistrer ou l'imprimer. Une facture qui est sortie de Kwik est verrouillée : pour la corriger, Kwik crée un avoir.</p></div>
   <div class="card"><h2 style="margin-top:0">Bon à savoir</h2>
   <p>• Les numéros de facture se suivent sans trou, comme l'exige la loi. Une facture ne se supprime pas.</p>
   <p>• Le livre des recettes se remplit quand vous encaissez une facture.</p>
-  <p>• Le bouton jaune « + » permet de tout créer depuis n'importe quel écran.</p>
-  <p>• À partir du 1er septembre 2027, les factures entre professionnels devront passer par une plateforme agréée. Une prochaine version permettra de les y envoyer.</p>
+  <p>• Le bouton rond « + » en bas crée un devis ou une facture depuis n'importe quel écran.</p>
+  <p>• Depuis le 1er septembre 2026, toute entreprise doit pouvoir recevoir des factures électroniques : il faut choisir une plateforme agréée par les impôts (certaines sont gratuites).</p>
+  <p>• Au plus tard le 1er septembre 2027, vos factures aux professionnels devront partir par cette plateforme, et vos ventes aux particuliers y seront déclarées. Une prochaine version de Kwik vous y aidera. <a href="https://entreprendre.service-public.gouv.fr/vosdroits/F23208" target="_blank" rel="noopener">En savoir plus</a></p>
   <p style="margin-bottom:0">• Vos données ne quittent pas votre téléphone. Pensez à les sauvegarder.</p></div>`}
 
 /* ============ Actions ============ */
@@ -997,7 +1041,9 @@ function telecharger(nom,contenu,type){const blob=new Blob([contenu],{type});
   if(file&&navigator.canShare&&navigator.canShare({files:[file]})&&/Android|iPhone|iPad/i.test(navigator.userAgent)){navigator.share({files:[file],title:nom}).catch(()=>{});return}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nom;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
 function csv(lignes){return '﻿'+lignes.map(l=>l.map(v=>{v=typeof v==='number'?dec(v):String(v==null?'':v);return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}).join(';')).join('\r\n')}
-function messageDoc(type,d){const e=D.entreprise;const c=d.client||{};const nom=c.type==='pro'?'':(c.nom||'').replace(/^(M\.|Mme|Monsieur|Madame)\s+/i,'');
+/* « Mme Durand » devient « Bonjour Madame Durand », « M. Petit » devient « Bonjour Monsieur Petit ». */
+function salutation(c){if(!c||c.type==='pro')return '';const n=String(c.nom||'').trim();let m=n.match(/^(?:M\.|Monsieur)\s+(.+)/i);if(m)return 'Monsieur '+m[1];m=n.match(/^(?:Mme\.?|Madame)\s+(.+)/i);if(m)return 'Madame '+m[1];return n}
+function messageDoc(type,d){const e=D.entreprise;const c=d.client||{};const nom=salutation(c);
   if(type==='avoir')return `Bonjour${nom?' '+nom:''},\n\nVoici l'avoir ${d.numero} qui annule la facture ${d.factureNumero}${d.statut==='solde'?' : vous ne me devez plus rien pour cette facture':d.statut==='rembourse'?' : je vous ai remboursé '+eur(totalDoc(d)):' : je vous rembourse '+eur(totalDoc(d))+' très vite'}.\n\nBien cordialement,\n${e.prenomNom||''}${e.tel?'\n'+e.tel:''}`;
   if(type==='devis')return `Bonjour${nom?' '+nom:''},\n\nVoici mon devis ${d.numero} d'un montant de ${eur(totalDoc(d))}, valable jusqu'au ${fdate(d.validite)}.\n\nN'hésitez pas si vous avez des questions.\n\n${e.prenomNom||''}${e.tel?'\n'+e.tel:''}`;
   if(enRetard(d))return `Bonjour${nom?' '+nom:''},\n\nSauf erreur de ma part, la facture ${d.numero} de ${eur(totalDoc(d))}, arrivée à échéance le ${fdate(d.echeance)}, n'a pas encore été réglée.\n\nMerci de bien vouloir procéder au paiement${e.iban?' par virement (IBAN '+e.iban+')':''}.\n\nBien cordialement,\n${e.prenomNom||''}${e.tel?'\n'+e.tel:''}`;
@@ -1066,13 +1112,13 @@ Les présentes conditions générales de vente (CGV) s'appliquent aux prestation
 Toute prestation fait l'objet d'un devis gratuit, valable pendant la durée indiquée. La commande est ferme dès réception du devis daté et signé avec la mention « Bon pour accord ». Un acompte de [30] % peut être demandé à la signature.
 
 3. Prix
-Les prix sont indiqués en euros. TVA non applicable, art. 293 B du CGI. Les travaux supplémentaires non prévus au devis feront l'objet d'un avenant accepté par le client.
+Les prix sont indiqués en euros, sans TVA (franchise en base de TVA). Les travaux supplémentaires non prévus au devis feront l'objet d'un avenant accepté par le client.
 
 4. Paiement
 Le solde est payable à la date indiquée sur la facture, par virement, chèque ou espèces (dans la limite légale). Pour les clients professionnels, tout retard entraîne des pénalités au taux de trois fois le taux d'intérêt légal et une indemnité forfaitaire de 40 € pour frais de recouvrement.
 
 5. Délais
-Les délais d'intervention sont donnés à titre indicatif. Un retard ne peut entraîner l'annulation de la commande que s'il dépasse [30] jours après mise en demeure restée sans effet.
+La date ou le délai d'intervention est indiqué sur le devis. En cas de retard, le client peut, après une mise en demeure restée sans effet, annuler la commande et être remboursé des sommes versées.
 
 6. Droit de rétractation (particuliers)
 Si le contrat est conclu à distance ou hors établissement (au domicile du client), le client particulier dispose de 14 jours pour se rétracter, sans justification. S'il demande que la prestation commence avant la fin de ce délai, il paiera la part déjà réalisée. Le droit de rétractation ne s'applique plus à une prestation entièrement exécutée avec son accord.
@@ -1092,10 +1138,10 @@ Les présentes conditions générales de vente (CGV) s'appliquent aux ventes de 
 Chaque pièce est faite à la main. De légères différences de forme, de taille, de couleur ou d'émail par rapport aux photos ou aux exemples sont normales : elles ne sont pas des défauts. [Préciser l'usage : pièces aptes au contact alimentaire, lave-vaisselle et micro-ondes oui ou non, éviter les chocs thermiques.]
 
 3. Commandes sur mesure
-Une pièce personnalisée fait l'objet d'un devis. La commande est ferme dès signature du devis et versement d'un acompte de [30] %, non remboursable une fois la fabrication commencée. Le délai de fabrication est indiqué sur le devis, à titre indicatif.
+Une pièce personnalisée fait l'objet d'un devis. La commande est ferme dès signature du devis et versement d'un acompte de [30] %, non remboursable une fois la fabrication commencée. Le délai de fabrication est indiqué sur le devis. En cas de retard, le client peut, après une mise en demeure restée sans effet, annuler la commande et être remboursé.
 
 4. Prix
-Les prix sont en euros. TVA non applicable, art. 293 B du CGI. Les frais d'envoi éventuels sont indiqués avant la commande et restent à la charge du client.
+Les prix sont en euros, sans TVA (franchise en base de TVA). Les frais d'envoi éventuels sont indiqués avant la commande et restent à la charge du client.
 
 5. Paiement
 ${PHRASE_ECHEANCE}, par virement, carte, chèque ou espèces (dans la limite légale). Les créations restent la propriété du vendeur jusqu'au paiement complet. Pour les clients professionnels, tout retard entraîne des pénalités au taux de trois fois le taux d'intérêt légal et une indemnité forfaitaire de 40 € pour frais de recouvrement.
@@ -1135,15 +1181,16 @@ const AIDE={
     "C'est le numéro d'identité de votre entreprise : 14 chiffres. Il est obligatoire sur vos devis et factures.",
     "Vous le trouvez sur votre attestation d'immatriculation, ou en tapant votre nom sur le site Annuaire des entreprises."],
     src:['Annuaire des entreprises','https://annuaire-entreprises.data.gouv.fr/']},
-  tva:{t:'« TVA non applicable, art. 293 B du CGI »',p:[
+  tva:{t:'« TVA non applicable »',p:[
     "En micro-entreprise, vous êtes en général en « franchise de TVA » : vous ne facturez pas de TVA, et vous ne la récupérez pas sur vos achats.",
-    "Cette phrase est obligatoire sur vos devis et factures pour l'expliquer à vos clients. Kwik l'ajoute toute seule.",
-    "Si votre chiffre d'affaires dépasse le seuil de franchise, la TVA devient due : Kwik vous prévient sur l'accueil."],
+    "Une phrase est obligatoire sur vos factures pour l'expliquer à vos clients. Kwik l'ajoute toute seule. Jusqu'au 31 décembre 2026 : « art. 293 B du CGI ». À partir du 1er janvier 2027, la loi change de numéro et Kwik écrit « art. L. 233-3 du CIBS ».",
+    "Seuils : 85 000 € de ventes ou 37 500 € de services par an. Si vous les dépassez, la TVA sera due l'année suivante (tout de suite au-delà de 93 500 € ou 41 250 €). Kwik vous montre où vous en êtes dans « Mes plafonds », sur l'accueil."],
     src:['La franchise de TVA (service-public.fr)','https://entreprendre.service-public.gouv.fr/']},
-  urssaf:{t:'Ce qu\'il faut mettre de côté',p:[
-    "En micro-entreprise, vous payez vos cotisations sociales en pourcentage de ce que vous encaissez : environ 12,3 % pour les ventes d'objets et 21,2 % pour les prestations de services.",
-    "Vous déclarez chaque mois ou chaque trimestre sur le site de l'URSSAF ce que vous avez encaissé. Kwik vous donne les montants dans « Pour ma déclaration URSSAF ».",
-    "Conseil : mettez cette somme de côté au fur et à mesure, pour ne pas être surpris."],
+  urssaf:{t:'Ce qu\'il faut mettre de côté',get p(){return [
+    `En micro-entreprise, l'URSSAF prélève un pourcentage de ce que vous encaissez : vos cotisations sociales (${pc(D.params.tauxVente)} % des ventes d'objets, ${pc(D.params.tauxService)} % des prestations de services), plus deux petites contributions : la formation professionnelle et la taxe de ${D.params.registre==='commercant'?'CCI':'chambre de métiers'}.`,
+    `Avec vos réglages (dans Mon entreprise), Kwik compte ${pc(tauxURSSAF('vente'))} % de vos ventes et ${pc(tauxURSSAF('service'))} % de vos services. L'ACRE fait baisser les cotisations au début ; le versement libératoire y ajoute l'impôt.`,
+    "Vous déclarez chaque mois ou chaque trimestre sur le site de l'URSSAF ce que vous avez encaissé. Kwik vous donne les montants dans « Déclarer à l'URSSAF ».",
+    "Conseil : mettez cette somme de côté au fur et à mesure, pour ne pas être surpris."]},
     src:['Déclarer sur autoentrepreneur.urssaf.fr','https://www.autoentrepreneur.urssaf.fr/']},
   nature:{t:'Vente ou prestation ?',p:[
     "Vente : vous vendez une chose, même fabriquée par vous (une poterie, un bijou, des matériaux). Le prix tout compris d'une pièce, façonnage et cuissons inclus, est une vente.",
@@ -1256,11 +1303,11 @@ const App={
     doc.lignes=lignes.map(l=>({designation:String(l.designation).trim(),qte:num(l.qte),unite:l.unite||'',pu:r2(num(l.pu)),nature:NATURES[l.nature]?l.nature:'service',fourn:l.nature==='mixte'?Math.min(r2(num(l.pu)),r2(num(l.fourn))):undefined}));
     doc.client={nom:cl.nom,type:cl.type,siren:cl.siren,adresse:cl.adresse,cp:cl.cp,ville:cl.ville,email:cl.email};doc.maj=new Date().toISOString();
     if(!doc.id){doc.id=uid();doc.cree=doc.maj;doc.numero=prochainNumero(type,doc.date);
-      if(type==='devis')doc.statut='brouillon';else{doc.statut='emise';doc.emetteur=Object.assign({},D.entreprise)}
+      if(type==='devis')doc.statut='brouillon';else{doc.statut='emise';doc.emetteur=figerEmetteur()}
       liste.push(doc);
       if(type==='facture'&&doc.devisId){const dv=parId(D.devis,doc.devisId);if(dv){dv.statut='facture';dv.factureId=doc.id;dv.maj=doc.maj}}
       if(type==='facture'&&doc.remplace){const o=parId(D.factures,doc.remplace);if(o&&!o.annulee){creerAvoir(o);o.remplaceePar=doc.id}}}
-    else{const i=liste.findIndex(x=>x.id===doc.id);if(type==='facture')doc.emetteur=Object.assign({},D.entreprise);liste[i]=doc}
+    else{const i=liste.findIndex(x=>x.id===doc.id);if(type==='facture')doc.emetteur=figerEmetteur();liste[i]=doc}
     if(enregistrer()){ED=null;const premier=liste.length===1;toast(premier?(type==='devis'?'🎉 Votre premier devis !':'🎉 Votre première facture !'):(type==='devis'?'Devis enregistré':'Facture enregistrée'));if(premier)confettis();go('#/voir/'+type+'/'+doc.id)}},
   statutDevis(id,s){const d=parId(D.devis,id);d.statut=s;d.maj=new Date().toISOString();enregistrer();route()},
   devisVersFacture(id){const d=parId(D.devis,id);const t=today();
@@ -1340,9 +1387,10 @@ const App={
     const ancien=document.title;const cl=(d.client&&d.client.nom||'').replace(/[^\w\- ]+/g,'').trim();document.title=(type==='devis'?'Devis ':'Facture ')+d.numero+(cl?' '+cl:'');
     const fin=()=>{document.title=ancien;window.removeEventListener('afterprint',fin)};window.addEventListener('afterprint',fin);
     setTimeout(()=>{try{window.print()}catch(e){toast('Impression impossible ici')}setTimeout(fin,4000)},50)},
-  sauverEntreprise(ev){const o=formData(ev);['tauxVente','tauxService','plafondVente','plafondService','tvaVente','tvaService'].forEach(k=>{D.params[k]=num(o[k])||PARAMS_DEFAUT[k];delete o[k]});o.delai=Math.max(0,Math.round(num(o.delai)));o.cgvDevis=!!o.cgvDevis;o.cgvFacture=!!o.cgvFacture;
+  sauverEntreprise(ev){const o=formData(ev);TAUX_NUM.forEach(k=>{D.params[k]=num(o[k])||PARAMS_DEFAUT[k];delete o[k]});
+    D.params.registre=o.registre==='commercant'?'commercant':'artisan';D.params.acre=!!o.acre;D.params.vl=!!o.vl;delete o.registre;delete o.acre;delete o.vl;o.delai=Math.max(0,Math.round(num(o.delai)));o.cgvDevis=!!o.cgvDevis;o.cgvFacture=!!o.cgvFacture;
     Object.assign(D.entreprise,o);if(D.entreprise.mediateurNom&&D.entreprise.cgv)D.entreprise.cgv=D.entreprise.cgv.replace('[nom et site du médiateur]',texteMediateur());enregistrer();toast('Fiche enregistrée');go('#/accueil')},
-  paramsDefaut(){D.params=Object.assign({},PARAMS_DEFAUT);enregistrer();route();toast('Valeurs 2026 remises')},
+  paramsDefaut(){TAUX_NUM.forEach(k=>D.params[k]=PARAMS_DEFAUT[k]);enregistrer();route();toast('Valeurs officielles remises')},
   logo(input,wz){const f=input.files&&input.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{
       const max=400;const k=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);
       const x=c.getContext('2d');x.drawImage(img,0,0,c.width,c.height);D.entreprise.logo=c.toDataURL('image/png');
@@ -1356,7 +1404,7 @@ const App={
   exporter(){D.derniereSauvegarde=new Date().toISOString();enregistrer();telecharger('kwik-sauvegarde-'+today()+'.json',JSON.stringify(Object.assign({app:'Kwik',version:1},D),null,1),'application/json');route()},
   importer(input){const f=input.files&&input.files[0];if(!f)return;const r=new FileReader();r.onload=async()=>{let d;try{d=JSON.parse(r.result);if(!d||!Array.isArray(d.factures)||!Array.isArray(d.clients))throw 0}catch(e){info('Fichier non reconnu',"Ce fichier n'est pas une sauvegarde Kwik.");input.value='';return}
       if(!await ask('Restaurer cette sauvegarde ?',`${d.factures.length} factures, ${(d.devis||[]).length} devis et ${d.clients.length} clients remplaceront les données de ce téléphone.`,'Restaurer',true)){input.value='';return}
-      delete d.app;delete d.version;D=fusion(d);enregistrer();toast('Sauvegarde restaurée');go('#/accueil')};r.readAsText(f)},
+      delete d.app;delete d.version;D=fusion(d);compacter();enregistrer();toast('Sauvegarde restaurée');go('#/accueil')};r.readAsText(f)},
   async toutEffacer(){if(!await ask('Tout effacer ?','Toutes les données de ce téléphone seront supprimées.','Continuer',true))return;await new Promise(r=>setTimeout(r,260));if(!await ask('Vraiment tout effacer ?','Cette action est définitive.','Tout effacer',true))return;D=vide();enregistrer();toast('Données effacées');go('#/accueil')}
 };
 appliquerApparence();
@@ -1364,6 +1412,8 @@ window.App=App;window.majTypeClient=majTypeClient;window.closeSheet=closeSheet;w
 if(!D.onboarded&&!entrepriseOk()&&!D.factures.length&&!D.devis.length&&!/bienvenue/.test(location.hash))location.replace('#/bienvenue/1');
 route();
 if('serviceWorker' in navigator&&location.protocol==='https:'&&window.self===window.top){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+/* Une fois installée, Kwik demande au téléphone de ne jamais effacer ses données pour faire de la place. */
+try{if(navigator.storage&&navigator.storage.persist&&((window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone))navigator.storage.persisted().then(ok=>ok||navigator.storage.persist()).catch(()=>{})}catch(e){}
 </script>
 </body>
 </html>
