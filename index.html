@@ -384,7 +384,8 @@ function enregistrer(){try{localStorage.setItem(KEY,JSON.stringify(D));return tr
 const parId=(arr,id)=>arr.find(x=>x.id===id);
 function prochainNumero(type,dateIso){const y=(dateIso||today()).slice(0,4);const k=type+y;const n=(D.compteurs[k]||0)+1;D.compteurs[k]=n;return (type==='facture'?'F':'D')+y+'-'+String(n).padStart(type==='facture'?4:3,'0')}
 const totalDoc=doc=>r2((doc.lignes||[]).reduce((s,l)=>s+num(l.qte)*num(l.pu),0));
-function partsDoc(doc){const p={vente:0,service:0};(doc.lignes||[]).forEach(l=>{p[l.nature==='vente'?'vente':'service']+=num(l.qte)*num(l.pu)});p.vente=r2(p.vente);p.service=r2(p.service);return p}
+function partsLigne(l){const q=num(l.qte),pu=num(l.pu);if(l.nature==='mixte'){const f=Math.min(pu,Math.max(0,num(l.fourn)));return{vente:q*f,service:q*(pu-f)}}return l.nature==='vente'?{vente:q*pu,service:0}:{vente:0,service:q*pu}}
+function partsDoc(doc){const p={vente:0,service:0};(doc.lignes||[]).forEach(l=>{const x=partsLigne(l);p.vente+=x.vente;p.service+=x.service});p.vente=r2(p.vente);p.service=r2(p.service);return p}
 function natureOperation(doc){const p=partsDoc(doc);if(p.vente&&p.service)return 'Livraison de biens et prestation de services';if(p.vente)return 'Livraison de biens';return 'Prestation de services'}
 const enRetard=f=>f.statut!=='payee'&&f.echeance&&f.echeance<today();
 function badgeFacture(f){if(f.statut==='payee')return '<span class="badge ok">Payée</span>';if(enRetard(f))return '<span class="badge bad">En retard</span>';return '<span class="badge warn">À encaisser</span>'}
@@ -413,7 +414,7 @@ function sheetCreer(){openSheet(`<h3>Créer</h3><div class="list">
   </div>`)}
 $('#fab').onclick=()=>{ED=null;if(location.hash==='#/devis-edit/nouveau')route();else go('#/devis-edit/nouveau')};
 function sheetMenu(){const it=(h,ic,t,s)=>`<a class="item" href="${h}" onclick="closeSheet()"><span class="av">${svg(ic)}</span><span class="grow"><span class="t" style="display:block">${t}</span><span class="s" style="display:block">${s}</span></span>${svg('chev','i chev')}</a>`;
-  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos prix enregistrés')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/apparence','edit','Apparence','Couleurs, taille du texte, mode sombre')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.5 · vos données restent sur ce téléphone</p>`)}
+  openSheet(`<h3>Menu</h3><div class="list">${it('#/entreprise','client','Mon entreprise','Coordonnées, SIRET, logo, paiement')}${it('#/catalogue','devis','Catalogue','Vos prix enregistrés')}${it('#/urssaf','euro','Déclarer à l’URSSAF','Les montants à recopier, pas à pas')}${it('#/recettes','euro','Livre des recettes','Rempli tout seul')}${it('#/achats','achat','Registre des achats','Vos dépenses')}${it('#/apparence','edit','Apparence','Couleurs, taille du texte, mode sombre')}${it('#/sauvegarde','copy','Sauvegarde','Exporter ou restaurer')}${it('#/aide','bell','Installer et aide','Écran d’accueil, PDF, bon à savoir')}</div><p class="small muted" style="text-align:center">Kwik · version 0.6 · vos données restent sur ce téléphone</p>`)}
 
 /* ============ Routeur ============ */
 let ED=null,RETOUR_CLIENT=null,AFTER=null;
@@ -429,7 +430,7 @@ function route(){
   const onglet={accueil:'accueil',devis:'devis','devis-edit':'devis',factures:'factures','facture-edit':'factures',voir:parts[1]==='devis'?'devis':'factures',clients:'clients','client-edit':'clients'}[r]||'';
   document.querySelectorAll('#tabs a').forEach(a=>a.classList.toggle('on',a.dataset.r===onglet));
   actionbar('');document.body.classList.toggle('wizard',r==='bienvenue');
-  const V={accueil:vAccueil,devis:vListeDevis,factures:vListeFactures,clients:vClients,'client-edit':vClientEdit,catalogue:vCatalogue,'produit-edit':vProduitEdit,achats:vAchats,'achat-edit':vAchatEdit,recettes:vRecettes,entreprise:vEntreprise,sauvegarde:vSauvegarde,'devis-edit':p=>vEditDoc('devis',p),'facture-edit':p=>vEditDoc('facture',p),voir:vVoir,aide:vAide,apparence:vApparence,bienvenue:vBienvenue}[r]||vAccueil;
+  const V={accueil:vAccueil,devis:vListeDevis,factures:vListeFactures,clients:vClients,'client-edit':vClientEdit,catalogue:vCatalogue,'produit-edit':vProduitEdit,achats:vAchats,'achat-edit':vAchatEdit,recettes:vRecettes,entreprise:vEntreprise,sauvegarde:vSauvegarde,'devis-edit':p=>vEditDoc('devis',p),'facture-edit':p=>vEditDoc('facture',p),voir:vVoir,aide:vAide,apparence:vApparence,bienvenue:vBienvenue,urssaf:vUrssaf}[r]||vAccueil;
   $('#main').innerHTML=V(parts[1],parts.slice(2).join('/'))||'';
   window.scrollTo(0,0);
   if(AFTER){const f=AFTER;AFTER=null;f()}
@@ -457,7 +458,7 @@ function vAccueil(){
     <div class="split" style="margin-top:12px"><div class="mark"><b>${eur(totAEnc)}</b><span>À encaisser</span></div><div><b>${eur(mois.total)}</b><span>En ${MOIS[m-1]}</span></div></div></div>`;
   const trim=encaisse(P[2].de,P[2].a);
   if(an.total>0)h+=`<div class="card aside"><span class="em">🐷</span><span style="flex:1;min-width:0"><span class="small muted" style="display:flex;align-items:center">À mettre de côté pour l'URSSAF (ce trimestre)${bulle('urssaf')}</span><b class="big">${eur(trim.cotis)}</b><span class="small muted">Environ ${dec(D.params.tauxVente)} % de vos ventes et ${dec(D.params.tauxService)} % de vos services encaissés.</span></span></div>`;
-  h+=`<details class="card" open><summary>Mes chiffres pour l'URSSAF ${bulle('urssaf')}</summary><div class="scroll"><table class="t"><thead><tr><th>Période</th><th class="n">Ventes</th><th class="n">Services</th><th class="n">Cotisations*</th></tr></thead><tbody>`+
+  h+=`<details class="card" open><summary>Mes chiffres pour l'URSSAF ${bulle('urssaf')}</summary><a class="btn primary block" href="#/urssaf" style="margin-top:12px">Déclarer pas à pas</a><div class="scroll"><table class="t"><thead><tr><th>Période</th><th class="n">Ventes</th><th class="n">Services</th><th class="n">Cotisations*</th></tr></thead><tbody>`+
     P.map(p=>{const e=encaisse(p.de,p.a);return `<tr><td>${p.lib}</td><td class="n">${eur(e.vente)}</td><td class="n">${eur(e.service)}</td><td class="n">${eur(e.cotis)}</td></tr>`}).join('')+
     `</tbody></table></div><p class="small muted">* Estimation sur les sommes encaissées, avec ${dec(D.params.tauxVente)} % pour les ventes et ${dec(D.params.tauxService)} % pour les services. Les deux se déclarent sur des lignes séparées. Hors versement libératoire et contribution à la formation.</p></details>`;
   h+=`<div class="quick"><a href="#/devis-edit/nouveau"><span class="ic">${svg('devis')}</span>Devis</a><a href="#/facture-edit/nouveau"><span class="ic">${svg('facture')}</span>Facture</a><a href="#/client-edit/nouveau"><span class="ic">${svg('client')}</span>Client</a><a href="#/achat-edit/nouveau"><span class="ic">${svg('achat')}</span>Achat</a></div>`;
@@ -466,6 +467,7 @@ function vAccueil(){
   retard.sort((a,b)=>a.echeance.localeCompare(b.echeance)).forEach(f=>todos.push(`<a class="todo" href="#/voir/facture/${f.id}" style="text-decoration:none;color:inherit"><span class="dot" style="background:var(--bad)"></span><span style="flex:1;min-width:0"><b>Relancer ${esc(f.client.nom)}</b><br><span class="small muted">${esc(f.numero)} · en retard de ${daysBetween(f.echeance,t)} j</span></span><span class="amount">${eur(totalDoc(f))}</span></a>`));
   D.devis.filter(d=>d.statut==='envoye'&&daysBetween(d.date,t)>=7).forEach(d=>todos.push(`<a class="todo" href="#/voir/devis/${d.id}" style="text-decoration:none;color:inherit"><span class="dot" style="background:var(--warn)"></span><span style="flex:1;min-width:0"><b>Devis sans réponse : ${esc(d.client.nom)}</b><br><span class="small muted">${esc(d.numero)} · envoyé il y a ${daysBetween(d.date,t)} j</span></span><span class="amount">${eur(totalDoc(d))}</span></a>`));
   D.devis.filter(d=>d.statut==='accepte').forEach(d=>todos.push(`<a class="todo" href="#/voir/devis/${d.id}" style="text-decoration:none;color:inherit"><span class="dot" style="background:var(--ok)"></span><span style="flex:1;min-width:0"><b>Facturer ${esc(d.client.nom)}</b><br><span class="small muted">Devis ${esc(d.numero)} accepté</span></span><span class="amount">${eur(totalDoc(d))}</span></a>`));
+  if(D.onboarded||entrepriseOk())aDeclarer().slice(0,1).forEach(o=>todos.push(`<a class="todo" href="#/urssaf" style="text-decoration:none;color:inherit"><span class="dot" style="background:${o.limite<t?'var(--bad)':'var(--warn)'}"></span><span style="flex:1;min-width:0"><b>Déclarer à l'URSSAF : ${o.lib}</b><br><span class="small muted">Avant le ${fdate(o.limite)}</span></span><span class="amount">${eur(o.vente+o.service)}</span></a>`));
   const ds=D.derniereSauvegarde;
   if(D.factures.length+D.devis.length&&(!ds||(Date.now()-new Date(ds).getTime())>30*864e5))todos.push(`<a class="todo" href="#/sauvegarde" style="text-decoration:none;color:inherit"><span class="dot" style="background:var(--brand)"></span><span style="flex:1"><b>Sauvegarder mes données</b><br><span class="small muted">${ds?'Dernière sauvegarde le '+fdate(ds.slice(0,10)):'Jamais faite'}</span></span>${svg('chev','i chev')}</a>`);
   if(todos.length)h+=`<h2>À faire</h2><div class="list">${todos.join('')}</div>`;
@@ -533,13 +535,15 @@ function vClientEdit(id){
 /* ============ Catalogue ============ */
 function vCatalogue(){titre('Catalogue','#/accueil');const l=D.produits.slice().sort((a,b)=>a.designation.localeCompare(b.designation,'fr'));
   return `<a class="btn primary block" href="#/produit-edit/nouveau">+ Ajouter un article</a><div style="height:12px"></div>`+(l.length?`<div class="list">`+l.map(p=>`<a class="item" href="#/produit-edit/${p.id}"><span class="grow"><span class="t" style="display:block">${esc(p.designation)}</span><span class="s" style="display:block">${p.nature==='vente'?'Vente':'Service'}${p.unite?' · par '+esc(p.unite):''}</span></span><span class="amount">${eur(p.pu)}</span></a>`).join('')+`</div>`:vide_('Enregistrez ici ce que vous facturez souvent. Vous l’ajouterez ensuite à un devis en un geste.','devis'))}
-const optNature=v=>`<option value="service" ${v!=='vente'?'selected':''}>Prestation de services</option><option value="vente" ${v==='vente'?'selected':''}>Vente de marchandises</option>`;
+const NATURES={vente:['Fourniture ou objet vendu','Fourniture'],service:["Main-d'œuvre ou prestation","Main-d'œuvre"],mixte:["Fourniture et main-d'œuvre comprises","Fourniture et main-d'œuvre comprises"]};
+const optNature=v=>Object.entries(NATURES).map(([k,x])=>`<option value="${k}" ${(v||'service')===k?'selected':''}>${x[0]}</option>`).join('');
 function vProduitEdit(id){const p=id&&id!=='nouveau'?parId(D.produits,id):{id:'',designation:'',unite:'',pu:'',nature:D.entreprise.activite==='vente'?'vente':'service'};if(!p){go('#/catalogue');return ''}
   titre(p.id?'Modifier l’article':'Nouvel article','#/catalogue','');
   return `<form class="card" onsubmit="App.sauverProduit(event,'${p.id}')">
     <label class="f">Désignation<input name="designation" required value="${esc(p.designation)}" placeholder="Ex. : Main d'œuvre"></label>
     <div class="grid2"><label class="f">Prix unitaire (€)<input name="pu" inputmode="decimal" required value="${esc(dec(p.pu))}"></label><label class="f">Unité<input name="unite" placeholder="heure, m², pièce" value="${esc(p.unite)}"></label></div>
     <label class="f">Type<select name="nature">${optNature(p.nature)}</select></label>
+    <label class="f">Dont fourniture, si « comprises » (€)<input name="fourn" inputmode="decimal" value="${esc(dec(p.fourn||''))}"></label>
     <button class="btn primary block">Enregistrer</button>
     ${p.id?`<div style="height:10px"></div><button type="button" class="btn ghost danger block" onclick="App.supprimerProduit('${p.id}')">Supprimer</button>`:''}
   </form>`}
@@ -571,7 +575,7 @@ function vEditDoc(type,id){
   </div></details>
   <details class="card" ${ED.notes?'open':''}><summary>Note pour le client</summary><label class="f" style="margin:12px 0 0"><textarea oninput="ED.notes=this.value" placeholder="Ex. : délai d'intervention, conditions particulières">${esc(ED.notes)}</textarea></label></details>
   <p class="small muted" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">TVA non applicable (franchise en base) : les montants sont nets.${bulle('tva')}</p>
-  <p class="small muted" style="display:flex;align-items:center;gap:4px">Vente ou prestation, que choisir pour chaque ligne ?${bulle('nature')}</p>`;
+  <p class="small muted" style="display:flex;align-items:center;gap:4px">Fourniture, main-d'œuvre ou les deux : que choisir ?${bulle('nature')}</p>`;
   AFTER=()=>{actionbar(`<div class="tot"><span class="small muted">Total</span><b id="edTotal">${eur(totalDoc(ED))}</b></div><button class="btn primary" onclick="App.sauverDoc()">${svg('check')} Enregistrer</button>`);
     if(!ED.id&&!ED.clientId&&D.clients.length&&!ED._auto){ED._auto=true;App.sheetClients()}};
   return h}
@@ -585,22 +589,23 @@ function lignesHtml(){return ED.lignes.map((l,i)=>`<div class="ligne">
     <div class="un"><span class="lab">Unité</span><input class="mini" value="${esc(l.unite)}" placeholder="h, m², u" oninput="ED.lignes[${i}].unite=this.value" aria-label="Unité"></div>
     <div class="pu"><span class="lab">Prix unitaire (€)</span><input class="mini" inputmode="decimal" value="${esc(dec(l.pu))}" placeholder="0,00" oninput="ED.lignes[${i}].pu=this.value;App.majTotaux()" aria-label="Prix unitaire"></div>
   </div>
-  <div class="foot"><select onchange="ED.lignes[${i}].nature=this.value" aria-label="Type">${optNature(l.nature)}</select><span class="lt" id="lt${i}">${eur(num(l.qte)*num(l.pu))}</span></div>
+  <div class="foot"><select onchange="ED.lignes[${i}].nature=this.value;document.getElementById('fo${i}').hidden=this.value!=='mixte'" aria-label="Type">${optNature(l.nature)}</select><span class="lt" id="lt${i}">${eur(num(l.qte)*num(l.pu))}</span></div>
+  <div id="fo${i}" class="row" ${l.nature==='mixte'?'':'hidden'}><div class="pu"><span class="lab">Dont fourniture, par unité (€)</span><input class="mini" inputmode="decimal" value="${esc(dec(l.fourn||''))}" placeholder="Ex. : prix de la terre, des matériaux" oninput="ED.lignes[${i}].fourn=this.value" aria-label="Part de fourniture"></div></div>
 </div>`).join('')}
 
 /* ============ Aperçu document ============ */
 function docHtml(type,d){
   const e=d.emetteur||D.entreprise;const c=d.client||{};const isF=type==='facture';
-  const lignes=(d.lignes||[]).filter(l=>l.designation||num(l.pu));const pro=c.type==='pro';
+  const lignes=(d.lignes||[]).filter(l=>l.designation||num(l.pu));const pro=c.type==='pro';const plusieurs=new Set(lignes.map(l=>l.nature||'service')).size>1;const pts=partsDoc(d);
   return `<div class="doc">
   <div class="hd"><div class="em">${e.logo?`<img class="logo" src="${e.logo}" alt="">`:''}<b>${esc(e.prenomNom||'Votre nom')} EI</b>${e.nomCommercial?'<br>'+esc(e.nomCommercial):''}<br>${esc(e.adresse)}<br>${esc(e.cp)} ${esc(e.ville)}<br>SIRET : ${esc(e.siret||'à compléter')}${e.tel?'<br>Tél. : '+esc(e.tel):''}${e.email?'<br>'+esc(e.email):''}</div>
   <div class="ti"><h3>${isF?'FACTURE':'DEVIS'}</h3><div>N° <b>${esc(d.numero||'(attribué à l’enregistrement)')}</b></div><div>Date : ${fdate(d.date)}</div>${isF?`<div>Date de la prestation / livraison : ${fdate(d.dateExecution||d.date)}</div><div>Échéance : ${fdate(d.echeance)}</div>`:`<div>Valable jusqu'au : ${fdate(d.validite)}</div>`}${isF&&d.statut==='payee'?`<div class="paid">ACQUITTÉE le ${fdate(d.paiement.date)}</div>`:''}</div></div>
   <div class="cl"><div style="font-size:11px;color:#666">${isF?'Facturé à':'Client'}</div><b>${esc(c.nom||'—')}</b>${c.adresse?'<br>'+esc(c.adresse):''}${c.cp||c.ville?'<br>'+esc(c.cp)+' '+esc(c.ville):''}${pro&&c.siren?'<br>SIREN : '+esc(c.siren):''}</div>
   <div style="font-size:11.5px;color:#444">Nature de l'opération : ${natureOperation(d)}</div>
   <table><thead><tr><th>Désignation</th><th class="n">Qté</th><th>Unité</th><th class="n">Prix unit.</th><th class="n">Total</th></tr></thead><tbody>
-  ${lignes.map(l=>`<tr><td>${nl(l.designation)}</td><td class="n">${dec(num(l.qte))}</td><td>${esc(l.unite)}</td><td class="n">${eur(num(l.pu))}</td><td class="n">${eur(num(l.qte)*num(l.pu))}</td></tr>`).join('')}
+  ${lignes.map(l=>`<tr><td>${nl(l.designation)}${(l.nature==='mixte'||plusieurs)?`<div style="font-size:10.5px;color:#666">${NATURES[l.nature||'service'][1]}</div>`:''}</td><td class="n">${dec(num(l.qte))}</td><td>${esc(l.unite)}</td><td class="n">${eur(num(l.pu))}</td><td class="n">${eur(num(l.qte)*num(l.pu))}</td></tr>`).join('')}
   </tbody></table>
-  <div class="tot"><div><span>Total HT</span><span>${eur(totalDoc(d))}</span></div><div class="big"><span>${isF?'Net à payer':'Total'}</span><span>${eur(totalDoc(d))}</span></div></div>
+  <div class="tot">${pts.vente&&pts.service?`<div style="color:#555;font-size:11.5px"><span>dont fournitures</span><span>${eur(pts.vente)}</span></div><div style="color:#555;font-size:11.5px"><span>dont main-d'œuvre</span><span>${eur(pts.service)}</span></div>`:''}<div><span>Total HT</span><span>${eur(totalDoc(d))}</span></div><div class="big"><span>${isF?'Net à payer':'Total'}</span><span>${eur(totalDoc(d))}</span></div></div>
   <p style="font-size:11.5px;margin-top:6px"><b>TVA non applicable, art. 293 B du CGI</b></p>
   ${d.notes?`<p style="margin-top:12px">${nl(d.notes)}</p>`:''}
   <div class="mentions">
@@ -637,6 +642,34 @@ function vVoir(type,id){
   return h}
 function ajusterApercu(){const w=document.querySelector('.paper-wrap');if(!w)return;const p=w.firstElementChild;const k=Math.min(1,w.clientWidth/640);p.style.transform='scale('+k+')';w.style.height=Math.ceil(p.offsetHeight*k)+'px'}
 window.addEventListener('resize',ajusterApercu);
+
+
+/* ============ Déclaration URSSAF ============ */
+function periodesDecl(){const mens=(D.params.periodicite||'trimestrielle')==='mensuelle';const t=today();let y=+t.slice(0,4),m=+t.slice(5,7);const out=[];
+  if(mens){for(let k=0;k<7;k++){const mm=((m-1-k)%12+12)%12+1,yy=y+Math.floor((m-1-k)/12);const ny=mm===12?yy+1:yy,nm=mm===12?1:mm+1;
+      out.push({cle:`M${yy}-${pad(mm)}`,lib:MOIS[mm-1].replace(/^./,c=>c.toUpperCase())+' '+yy,de:`${yy}-${pad(mm)}-01`,a:`${yy}-${pad(mm)}-31`,limite:addDays(`${ny}-${pad(nm)}-01`,32).slice(0,8)+'01',enCours:k===0})}
+    out.forEach(o=>{o.limite=addDays(o.limite,-1)})}
+  else{let q=Math.floor((m-1)/3);for(let k=0;k<5;k++){const qq=((q-k)%4+4)%4,yy=y+Math.floor((q-k)/4);const lim=['04-30','07-31','10-31','01-31'][qq];
+      out.push({cle:`T${yy}-${qq+1}`,lib:`${qq+1}${qq?'e':'er'} trimestre ${yy}`,de:`${yy}-${pad(qq*3+1)}-01`,a:`${yy}-${pad(qq*3+3)}-31`,limite:(qq===3?yy+1:yy)+'-'+lim,enCours:k===0})}}
+  out.forEach(o=>{const e=encaisse(o.de,o.a);o.vente=e.vente;o.service=e.service;o.cotis=e.cotis;o.fait=(D.declarations||{})[o.cle]});return out}
+function aDeclarer(){return periodesDecl().filter(o=>!o.enCours&&!o.fait)}
+function vUrssaf(){titre('Déclarer à l\'URSSAF','#/accueil','');const P=periodesDecl();const cible=P.find(o=>!o.enCours&&!o.fait);const cur=P[0];
+  const ligneCase=(lib,v,aide)=>`<div class="card" style="margin-bottom:10px"><div class="small muted">Case à remplir</div><b style="display:block;margin:2px 0 8px">${lib}</b><div style="display:flex;align-items:center;gap:10px"><span style="font:800 30px var(--font-d);flex:1" class="num">${Math.round(v)} €</span><button class="btn sm" onclick="App.copierTexte('${Math.round(v)}')">${svg('copy')} Copier</button></div>${aide?`<div class="small muted" style="margin-top:6px">${aide}</div>`:''}</div>`;
+  let h=`<div class="f" style="margin-bottom:16px"><span style="font-size:13.5px;font-weight:600;color:var(--muted)">Je déclare…</span><div class="seg">${[['mensuelle','Chaque mois'],['trimestrielle','Chaque trimestre']].map(([k,l])=>`<label><input type="radio" name="per" ${(D.params.periodicite||'trimestrielle')===k?'checked':''} onchange="App.periodicite('${k}')"><span>${l}</span></label>`).join('')}</div></div>`;
+  if(cible){const retard=cible.limite<today();
+    h+=`<div class="hero" style="margin-top:0"><div class="l">À déclarer maintenant</div><div class="v" style="font-size:28px">${cible.lib}</div><div class="split"><div class="mark"><b>${fdate(cible.limite)}</b><span>${retard?'Date limite dépassée':'Date limite'}</span></div><div><b>${eur(cible.cotis)}</b><span>Cotisations estimées</span></div></div></div>
+    <h2>1. Ouvrez votre espace URSSAF</h2><a class="btn primary block" href="https://www.autoentrepreneur.urssaf.fr/" target="_blank" rel="noopener">Aller sur autoentrepreneur.urssaf.fr</a>
+    <p class="small muted">Connectez-vous, puis choisissez « Déclarer et payer ».</p>
+    <h2>2. Recopiez ces montants</h2>
+    ${ligneCase('Ventes de marchandises (BIC)',cible.vente,'Vos objets vendus et vos fournitures.')}
+    ${ligneCase('Prestations de services commerciales et artisanales (BIC)',cible.service,'Votre main-d\'œuvre, vos ateliers, vos réparations.')}
+    <p class="small muted">Les montants sont arrondis à l'euro, comme le demande l'URSSAF. Si une case vaut 0, indiquez 0 : il faut déclarer même quand on n'a rien encaissé.</p>
+    <h2>3. Validez et payez</h2><p class="small muted" style="margin-top:-4px">L'URSSAF calcule vos cotisations (environ ${eur(cible.cotis)}) et vous propose de payer.</p>
+    <button class="btn hi block" onclick="App.declare('${cible.cle}')">${svg('check')} J'ai déclaré ${cible.lib}</button>`}
+  else h+=`<div class="card aside"><span class="em">✅</span><span><b>Vous êtes à jour</b><br><span class="small muted">Prochaine déclaration : ${cur.lib}, avant le ${fdate(cur.limite)}.</span></span></div>`;
+  h+=`<h2>Historique</h2><div class="list">${P.map(o=>`<div class="item"><span class="grow"><span class="t" style="display:block">${o.lib}</span><span class="s" style="display:block">Ventes ${Math.round(o.vente)} € · Services ${Math.round(o.service)} €</span></span><span class="end">${o.enCours?'<span class="badge grey">En cours</span>':o.fait?`<span class="badge ok">Déclaré</span>`:`<span class="badge ${o.limite<today()?'bad':'warn'}">Avant le ${fdate(o.limite).slice(0,5)}</span>`}${o.fait?`<button class="btn sm ghost" style="min-height:28px;padding:2px 8px;font-size:12px" onclick="App.declare('${o.cle}',true)">Annuler</button>`:''}</span></div>`).join('')}</div>
+  <p class="small muted">Les montants viennent des factures marquées « payées » : c'est la date d'encaissement qui compte.</p>`;
+  return h}
 
 /* ============ Achats ============ */
 function annees(){const s=new Set([today().slice(0,4)]);D.factures.forEach(f=>f.paiement&&s.add(f.paiement.date.slice(0,4)));D.achats.forEach(a=>s.add(a.date.slice(0,4)));return [...s].sort().reverse()}
@@ -880,9 +913,10 @@ const AIDE={
     "Vous déclarez chaque mois ou chaque trimestre sur le site de l'URSSAF ce que vous avez encaissé. Kwik vous donne les montants dans « Pour ma déclaration URSSAF ».",
     "Conseil : mettez cette somme de côté au fur et à mesure, pour ne pas être surpris."],
     src:['Déclarer sur autoentrepreneur.urssaf.fr','https://www.autoentrepreneur.urssaf.fr/']},
-  nature:{t:'Vente ou prestation ?',p:[
-    "Vente : vous vendez un objet (une poterie, un bijou, un produit acheté pour être revendu).",
-    "Prestation de services : vous vendez votre temps ou un savoir-faire (un atelier, un cours, une réparation, des travaux).",
+  nature:{t:'Fourniture ou main-d\'œuvre ?',p:[
+    "Fourniture ou objet vendu : vous vendez une chose (une poterie, un bijou, des matériaux).",
+    "Main-d'œuvre ou prestation : vous vendez votre temps ou un savoir-faire (un atelier, un cours, une pose, une réparation).",
+    "Fourniture et main-d'œuvre comprises : un seul prix pour les deux. Indiquez quelle part correspond à la fourniture : Kwik s'en sert pour séparer vos montants à déclarer.",
     "Les cotisations ne sont pas les mêmes, c'est pour ça que Kwik vous demande de choisir pour chaque ligne."]}
 };
 const bulle=k=>`<button type="button" class="q" aria-label="Aide : ${esc(AIDE[k].t)}" onclick="event.preventDefault();event.stopPropagation();App.aide('${k}')">?</button>`;
@@ -914,6 +948,9 @@ function vApparence(){titre('Apparence','#/accueil','');
   <div class="hero" style="margin-top:18px"><div class="l">Aperçu</div><div class="v">1 250,00 €</div><div class="split"><div class="mark"><b>480,00 €</b><span>À encaisser</span></div><div><b>12 400,00 €</b><span>Encaissé</span></div></div></div>`}
 
 const App={
+  periodicite(k){D.params.periodicite=k;enregistrer();route()},
+  declare(cle,annuler){D.declarations=D.declarations||{};if(annuler)delete D.declarations[cle];else{D.declarations[cle]=today();confettis();toast('✅ Déclaration notée !')}enregistrer();route()},
+  async copierTexte(t){try{await navigator.clipboard.writeText(t);toast('Copié : '+t)}catch(e){toast(t+' (à recopier)')}},
   aide(k){const a=AIDE[k];openSheet(`<div class="help"><h3>${esc(a.t)}</h3>${a.p.map(x=>`<p>${esc(x)}</p>`).join('')}${a.src?`<p class="src">Pour en savoir plus : <a href="${a.src[1]}" target="_blank" rel="noopener">${esc(a.src[0])}</a></p>`:''}<button class="btn primary block" onclick="closeSheet()">J'ai compris</button></div>`)},
   wzSuivant(ev,n){const o=formData(ev);
     if(n===7){D.entreprise.mediateurNom=o.mediateurNom||'';D.entreprise.mediateurSite=o.mediateurSite||'';if(o.modele==='vente'||o.modele==='service'){D.entreprise.cgv=modeleCgv(o.modele);D.entreprise.cgvDevis=true;D.entreprise.cgvFacture=true}enregistrer();return App.wzFin(true)}
@@ -935,7 +972,7 @@ const App={
   async supprimerClient(id){if(!await ask('Supprimer ce client ?','Ses devis et factures sont conservés.','Supprimer',true))return;D.clients=D.clients.filter(c=>c.id!==id);enregistrer();toast('Client supprimé');go('#/clients')},
   nouveauPour(type,cid){const t=today();ED={id:'',date:t,clientId:cid,lignes:[nouvelleLigne()],notes:'',_type:type,_id:'nouveau'};
     if(type==='devis')ED.validite=addDays(t,30);else{ED.dateExecution=t;ED.echeance=addDays(t,num(D.entreprise.delai)||30)}go('#/'+type+'-edit/nouveau')},
-  sauverProduit(ev,id){const o=formData(ev);o.pu=r2(num(o.pu));let p=id?parId(D.produits,id):null;if(p)Object.assign(p,o);else D.produits.push(Object.assign({id:uid()},o));enregistrer();toast('Article enregistré');go('#/catalogue')},
+  sauverProduit(ev,id){const o=formData(ev);o.pu=r2(num(o.pu));o.fourn=o.nature==='mixte'?r2(num(o.fourn)):undefined;let p=id?parId(D.produits,id):null;if(p)Object.assign(p,o);else D.produits.push(Object.assign({id:uid()},o));enregistrer();toast('Article enregistré');go('#/catalogue')},
   async supprimerProduit(id){if(!await ask('Supprimer cet article ?','Il disparaît du catalogue, pas des devis déjà faits.','Supprimer',true))return;D.produits=D.produits.filter(p=>p.id!==id);enregistrer();go('#/catalogue')},
   sauverAchat(ev,id){const o=formData(ev);o.montant=r2(num(o.montant));let a=id?parId(D.achats,id):null;if(a)Object.assign(a,o);else D.achats.push(Object.assign({id:uid()},o));enregistrer();toast('Achat enregistré');go('#/achats/'+o.date.slice(0,4))},
   async supprimerAchat(id){if(!await ask('Supprimer cet achat ?','','Supprimer',true))return;D.achats=D.achats.filter(a=>a.id!==id);enregistrer();go('#/achats')},
@@ -953,7 +990,7 @@ const App={
   majTotaux(){ED.lignes.forEach((l,i)=>{const el=$('#lt'+i);if(el)el.textContent=eur(num(l.qte)*num(l.pu))});const t=$('#edTotal');if(t)t.textContent=eur(totalDoc(ED))},
   pas(i,d){const l=ED.lignes[i];l.qte=Math.max(0,r2(num(l.qte)+d));$('#q'+i).value=dec(l.qte);App.majTotaux()},
   ajLigne(){ED.lignes.push(nouvelleLigne());$('#lignes').innerHTML=lignesHtml();App.majTotaux();const ins=$('#lignes').querySelectorAll('.des');ins[ins.length-1].focus()},
-  ajProduit(id){const p=parId(D.produits,id);if(!p)return;const l={designation:p.designation,qte:1,unite:p.unite||'',pu:p.pu,nature:p.nature};
+  ajProduit(id){const p=parId(D.produits,id);if(!p)return;const l={designation:p.designation,qte:1,unite:p.unite||'',pu:p.pu,nature:p.nature,fourn:p.fourn};
     if(ED.lignes.length===1&&!ED.lignes[0].designation&&!num(ED.lignes[0].pu))ED.lignes[0]=l;else ED.lignes.push(l);$('#lignes').innerHTML=lignesHtml();App.majTotaux();closeSheet();toast('Ajouté : '+p.designation)},
   supLigne(i){ED.lignes.splice(i,1);$('#lignes').innerHTML=lignesHtml();App.majTotaux()},
   async sauverDoc(){const type=ED._type;const liste=type==='devis'?D.devis:D.factures;
@@ -963,7 +1000,7 @@ const App={
     if(lignes.some(l=>!String(l.designation).trim())){toast('Chaque ligne doit avoir une désignation');return}
     if(type==='facture'&&!entrepriseOk()&&!await ask('Fiche entreprise incomplète','Votre nom, SIRET ou adresse manque. Ils sont obligatoires sur une facture.','Enregistrer quand même'))return;
     const doc=JSON.parse(JSON.stringify(ED));delete doc._type;delete doc._id;delete doc._auto;
-    doc.lignes=lignes.map(l=>({designation:String(l.designation).trim(),qte:num(l.qte),unite:l.unite||'',pu:r2(num(l.pu)),nature:l.nature==='vente'?'vente':'service'}));
+    doc.lignes=lignes.map(l=>({designation:String(l.designation).trim(),qte:num(l.qte),unite:l.unite||'',pu:r2(num(l.pu)),nature:NATURES[l.nature]?l.nature:'service',fourn:l.nature==='mixte'?Math.min(r2(num(l.pu)),r2(num(l.fourn))):undefined}));
     doc.client={nom:cl.nom,type:cl.type,siren:cl.siren,adresse:cl.adresse,cp:cl.cp,ville:cl.ville,email:cl.email};doc.maj=new Date().toISOString();
     if(!doc.id){doc.id=uid();doc.cree=doc.maj;doc.numero=prochainNumero(type,doc.date);
       if(type==='devis')doc.statut='brouillon';else{doc.statut='emise';doc.emetteur=Object.assign({},D.entreprise)}
