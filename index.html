@@ -53,6 +53,10 @@ a{color:var(--brand)}
 /* En-tête */
 .top{position:sticky;top:0;z-index:6;background:var(--bg);padding:calc(8px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 8px max(16px,env(safe-area-inset-left));display:flex;align-items:center;gap:6px;min-height:56px}
 .top h1{font:800 22px/1.1 var(--font-d);letter-spacing:-.3px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Logo Kwik : le K en blocs, fond nuit. Mêmes couleurs que l'icône du téléphone, quel que soit le thème choisi. */
+.brand{display:inline-flex;align-items:center;gap:9px}
+.brand svg{width:30px;height:30px;border-radius:8px;flex:none;box-shadow:0 0 0 1px var(--line)}
+.wz-logo svg{width:76px;height:76px;border-radius:18px;display:block;margin:8px 0 16px;box-shadow:0 0 0 1px var(--line),0 10px 24px -12px rgba(14,17,34,.5)}
 .icon-btn{width:42px;height:42px;border-radius:50%;border:0;background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:var(--shadow);flex:none}
 .icon-btn svg{width:22px;height:22px}
 svg.i{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;width:20px;height:20px;flex:none}
@@ -451,6 +455,7 @@ function sheetMenu(){const it=(h,ic,t,s)=>`<a class="item" href="${h}" onclick="
 /* ============ Routeur ============ */
 let ED=null,RETOUR_CLIENT=null,AFTER=null;
 function go(h){location.hash=h}
+const LOGO='<svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" fill="#0E1122"/><g transform="translate(-6 -10)" stroke-linecap="round" stroke-width="86"><path d="M262 300L362 394" stroke="#FF8A7A"/><path d="M262 250L362 146" stroke="#FFD23F"/><rect x="134" y="112" width="86" height="288" rx="43" fill="#7D8CFF" stroke="none"/></g></svg>';
 function titre(t,retour,actions){$('#titre').textContent=t;const b=$('#back');
   if(retour){b.hidden=false;b.onclick=()=>{if(typeof retour==='function')retour();else go(retour)}}else b.hidden=true;
   $('#hdActions').innerHTML=actions===undefined?`<button class="icon-btn" aria-label="Menu" onclick="sheetMenu()">${svg('menu')}</button>`:actions}
@@ -476,7 +481,7 @@ function periodes(){const t=today();const y=+t.slice(0,4),m=+t.slice(5,7);const 
 function barre(lib,val,max){const pc=max?Math.min(100,val/max*100):0;const cls=pc>=100?'bad':pc>=80?'warn':'';
   return `<div class="small" style="display:flex;justify-content:space-between;gap:10px"><span>${esc(lib)}</span><span class="muted num">${Math.round(pc)} %</span></div><div class="bar ${cls}"><i style="width:${pc.toFixed(1)}%"></i></div>`}
 function vAccueil(){
-  titre('');
+  titre('');$('#titre').innerHTML=`<span class="brand">${LOGO}Kwik</span>`;
   const t=today(),y=t.slice(0,4),m=+t.slice(5,7);const P=periodes();const an=encaisse(y+'-01-01',y+'-12-31');const mois=encaisse(P[0].de,P[0].a);
   const aEnc=D.factures.filter(aEncaisser);const retard=aEnc.filter(enRetard);const totAEnc=r2(aEnc.reduce((s,f)=>s+totalDoc(f),0));
   const h0=new Date().getHours();
@@ -1059,7 +1064,7 @@ function wzCadre(n,titre,texte,corps,suivant='Continuer',passer=''){
   <form id="wz" onsubmit="App.wzSuivant(event,${n})">${corps}
   <div class="wz-foot"><div class="in">${n>1?`<button type="button" class="btn ghost" onclick="go('#/bienvenue/${n-1}')" aria-label="Étape précédente">${svg('chev','i').replace('M9 6l6 6-6 6','M15 18l-6-6 6-6')}</button>`:''}${passer?`<button type="button" class="btn ghost" onclick="App.wzPasser(${n})">${passer}</button>`:''}<button class="btn primary">${suivant}</button></div></div></form>`}
 function vBienvenue(n){n=Math.min(WZ_N,Math.max(1,+n||1));titre('','', '');const e=D.entreprise;
-  if(n===1)return `<div style="font-size:54px;margin:10px 0 4px">👋</div><div class="wz-t">Bienvenue dans Kwik</div><p class="wz-p">Kwik vous aide à faire de beaux devis et factures, et à savoir où en est votre argent. Même si vous n'avez jamais fait de compta.</p>
+  if(n===1)return `<div class="wz-logo">${LOGO}</div><div class="wz-t">Bienvenue dans Kwik</div><p class="wz-p">Kwik vous aide à faire de beaux devis et factures, et à savoir où en est votre argent. Même si vous n'avez jamais fait de compta.</p>
     <ul class="bullets"><li><span class="em">📝</span><span><b>Des devis et factures en règle</b><br><span class="muted">Toutes les mentions obligatoires sont ajoutées pour vous.</span></span></li>
     <li><span class="em">💶</span><span><b>Votre chiffre d'affaires d'un coup d'œil</b><br><span class="muted">Ce que vous avez gagné, ce qu'on vous doit.</span></span></li>
     <li><span class="em">🐷</span><span><b>Ce qu'il faut mettre de côté</b><br><span class="muted">Le montant à prévoir pour l'URSSAF, calculé tout seul.</span></span></li></ul>
